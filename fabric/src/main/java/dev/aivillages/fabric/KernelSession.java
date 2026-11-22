@@ -997,15 +997,24 @@ public final class KernelSession implements AutoCloseable {
         if(CraftingTablePlacement.is(request.capability())) {
             long tick=server.overworld().getGameTime();var context=citizens.find(actor.citizenId()).owner();var area=ResourceDelivery.sourceArea(request);
             var bound=new ValidatedRequest(request,context,new ObservationRef(UUID.randomUUID(),tick,actor.dimension()));
-            var current=gatewayWorld().placementPreflight(bound);var source=((ContainerValue)request.arguments().get("source")).value();
-            var stock=leases.availableStock(LeasedGateway.sourceResource(context.scope().worldId(),bound),current.availableItems(),context);
-            boolean known=current.status()==ObservationStatus.PRESENT && current.reason()==null && stock.usable();
+            var current=gatewayWorld().placementPreflight(bound);
+            boolean usable;
+            long available;
+            if(request.heldTable()) {
+                usable=leases.ready();
+                available=usable?current.availableItems():0L;
+            } else {
+                var stock=leases.availableStock(LeasedGateway.sourceResource(context.scope().worldId(),bound),current.availableItems(),context);
+                usable=stock.usable();
+                available=usable?stock.available():0L;
+            }
+            boolean known=current.status()==ObservationStatus.PRESENT && current.reason()==null && usable;
             return new ObservationSnapshot(bound.observation(),known?ObservationStatus.PRESENT:ObservationStatus.UNKNOWN,
                     "source:"+UUID.nameUUIDFromBytes(area.toString().getBytes(StandardCharsets.UTF_8)),tick,1,
                     // Structural planning feasibility is distinct from a moving entity.
                     // Observation permits explicit MOVE to leave an occupied site;
                     // every mutation still requires actual clearance.
-                    Map.of("table_items",stock.usable()?stock.available():0L,"site_usable",known?1L:0L,
+                    Map.of("table_items",available,"site_usable",known?1L:0L,
                             "site_clear",known && !current.pending()?1L:0L,"unknown_cells",known?0L:1L));
         }
         if(RecipeProduction.is(request.capability())) {
@@ -1671,8 +1680,13 @@ public final class KernelSession implements AutoCloseable {
             var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),server.overworld().getGameTime(),actor.dimension()));
             var current=gatewayWorld().placementPreflight(bound);
             if(current.reason()!=null)return new BootstrapController.Submission(UUID.randomUUID(),false,current.reason());
-            var free=leases.availableStock(LeasedGateway.sourceResource(owner.scope().worldId(),bound),current.availableItems(),owner);
-            if(!free.usable() || free.available()<1)return new BootstrapController.Submission(UUID.randomUUID(),false,free.reason()==null?Reason.RESOURCE_MISSING:free.reason());
+            if(request.heldTable()) {
+                if(!leases.ready())return new BootstrapController.Submission(UUID.randomUUID(),false,
+                        leases.failure()==null?Reason.BUDGET_EXHAUSTED:leases.failure());
+            } else {
+                var free=leases.availableStock(LeasedGateway.sourceResource(owner.scope().worldId(),bound),current.availableItems(),owner);
+                if(!free.usable() || free.available()<1)return new BootstrapController.Submission(UUID.randomUUID(),false,free.reason()==null?Reason.RESOURCE_MISSING:free.reason());
+            }
         }
         if(RecipeProduction.is(request.capability())) {
             if(!(request.arguments().get("amount") instanceof IntValue amount) || amount.value()<1 || amount.value()>RecipeProduction.of(request.capability()).maximumAmount())

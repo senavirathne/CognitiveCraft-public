@@ -456,7 +456,7 @@ public final class LeasedGateway implements GatewayPort {
     }
     private static List<Demand> placementDemands(ValidatedRequest request,boolean durable) {
         var source=((ContainerValue)request.request().arguments().get("source")).value();var world=request.context().scope().worldId();
-        if(durable)return List.of(new Demand(Resource.recipeSource(world,source),1),
+        if(durable || request.request().heldTable())return List.of(new Demand(Resource.recipeSource(world,source),1),
                 new Demand(Resource.space(world,CraftingTablePlacement.workspace(request.request())),1));
         return List.of(new Demand(sourceResource(world,request),1),new Demand(Resource.facility(world,source),1),
                 new Demand(Resource.space(world,CraftingTablePlacement.workspace(request.request())),1));

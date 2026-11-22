@@ -75,6 +75,7 @@ public final class JobLifecycleStore {
     public boolean authorizeReassignment(UUID id, Guard expected, ActorRef successor, TrustedContext caller) {
         thread(); Job job=controlled(id,caller);
         if(job==null || successor==null || !ready() || !job.guard().equals(expected) || job.cancellationOutcome()!=null
+                || job.request().request().heldTable()
                 || job.state()!=State.INTERRUPTED && job.state()!=State.READY
                 || job.current()==null || clock.millis()>job.allowance().deadlineEpochMillis()
                 || !policy.controls(successor,job.origin())
@@ -982,7 +983,9 @@ public final class JobLifecycleStore {
                     || job.current() != null && job.current().open()
                     || !dependenciesSucceeded(job, rows(), work))
                 return reject(Reason.REQUEST_INVALID, work);
-            if (!policy.controls(worker, job.origin()) || !assignmentPolicy(job,worker)) return reject(Reason.AUTHORITY_DENIED, work);
+            if ((job.request().request().heldTable() && !worker.equals(job.responsible()))
+                    || !policy.controls(worker, job.origin()) || !assignmentPolicy(job,worker))
+                return reject(Reason.AUTHORITY_DENIED, work);
             if (job.attempts().size() == settings.attempts()) return reject(Reason.STORAGE_LIMIT_REACHED, work);
             for (Job other : state.jobs()) for (Attempt a : other.attempts())
                 if (a.id().equals(attemptId) || a.open() && a.worker().entityId().equals(worker.entityId()))
@@ -1692,7 +1695,8 @@ public final class JobLifecycleStore {
             if (child.maximum(kind) > parent.maximum(kind)) throw new Limited(Reason.BUDGET_EXHAUSTED);
     }
     private ValidatedRequest remainingRequest(Job job, ActorRef worker) {
-        var args = new HashMap<>(job.request().request().arguments()); args.put("actor", new ActorValue(worker));
+        var original=job.request().request();
+        var args = new HashMap<>(original.arguments()); args.put("actor", new ActorValue(worker));
         long allocated = state.allocations().stream().filter(a -> a.demand().equals(job.id()) && !a.material())
                 .mapToLong(Allocation::quantity).reduce(0, Math::addExact);
         long remaining = ((IntValue)args.get("amount")).value() - job.fulfilled() - allocated;
@@ -1703,7 +1707,7 @@ public final class JobLifecycleStore {
             remaining=step.quantity();
         }
         args.put("amount", new IntValue(remaining));
-        return new ValidatedRequest(new CapabilityRequest(job.request().request().capability(), args),
+        return new ValidatedRequest(new CapabilityRequest(original.capability(),args,original.heldTable()),
                 job.origin(), job.request().observation());
     }
     private static Attempt attempt(Attempt old, List<ExecutionReference> refs, Map<Budgets.Kind, Long> usage,
@@ -1784,7 +1788,8 @@ public final class JobLifecycleStore {
     private static boolean sameBindings(ValidatedRequest a, ValidatedRequest b) {
         var left = new HashMap<>(a.request().arguments()); var right = new HashMap<>(b.request().arguments());
         left.remove("amount"); right.remove("amount");
-        return a.context().equals(b.context()) && a.request().capability().equals(b.request().capability()) && left.equals(right);
+        return a.context().equals(b.context()) && a.request().capability().equals(b.request().capability())
+                && a.request().heldTable()==b.request().heldTable() && left.equals(right);
     }
     /** Bounded load/import verification. No unknown field or graph becomes active by parsing alone. */
     public static void validateSnapshot(Snapshot snapshot, Settings settings) {
@@ -1873,9 +1878,11 @@ public final class JobLifecycleStore {
                     throw new IllegalArgumentException("Duplicate assignment");
                 envelope(attempt.allowance(), job.allowance());
                 var step=job.activity()==null?null:job.activity().forAttempt(attempt.id());
-                var expected=step!=null && step.integrated()?step.invocation():new CapabilityRequest(job.request().request().capability(),
-                        withWorker(job.request().request().arguments(),attempt.worker()));
-                if (!sameBindings(attempt.bound(), new ValidatedRequest(expected,job.origin(),job.request().observation()))
+                var original=job.request().request();
+                var expected=step!=null && step.integrated()?step.invocation():new CapabilityRequest(original.capability(),
+                        withWorker(original.arguments(),attempt.worker()),original.heldTable());
+                if ((original.heldTable() && !attempt.worker().equals(job.responsible()))
+                        || !sameBindings(attempt.bound(), new ValidatedRequest(expected,job.origin(),job.request().observation()))
                         || attempt.executions().stream().anyMatch(r -> !r.artifact().capability().equals(expected.capability())))
                     throw new IllegalArgumentException("Changed assignment bindings");
                 for (var receipt : attempt.receipts()) {

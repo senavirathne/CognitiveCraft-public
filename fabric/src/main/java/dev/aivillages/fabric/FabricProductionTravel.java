@@ -20,6 +20,13 @@ final class FabricProductionTravel {
         return facility==null?Math.addExact(approach,distance(source,destination)):
                 Math.addExact(approach,Math.addExact(distance(source,point(facility)),distance(point(facility),destination)));
     }
+    static long singleBatchInputAndDelivery(ContainerRef start,ContainerRef source,ContainerRef destination) {
+        // The input walk starts at the observed pose and ends at a reachable side of
+        // the container. Delivery may start and finish on either accessible side.
+        long input=Math.addExact(distance(start,source),INTERACTION_CELLS);
+        long delivery=Math.addExact(distance(source,destination),2L*INTERACTION_CELLS);
+        return Math.max(recipe(start,source,destination,null,null),Math.addExact(input,delivery));
+    }
     static long placement(ContainerRef start,ContainerRef source,FacilityRef site) {
         var destination=point(site);
         // Withdrawal can end at any reachable side of the chest. The next leg starts there,

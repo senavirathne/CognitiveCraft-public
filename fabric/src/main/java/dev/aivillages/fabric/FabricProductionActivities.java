@@ -222,18 +222,22 @@ final class FabricProductionActivities {
         var profiles=new ArrayList<RecipeProfile>();
         boolean exactLegacy=job.activity().production().exactLegacyMaterials();
         boolean separateSticks=job.activity().production().allowsSeparateSticks();
+        boolean singleBatchPlanks=allowedArea==null && goal.demand()<=production.outputPerBatch()
+                && RecipeProduction.PlankMaterial.forOutput(production.output().id()).isPresent();
         var capabilities=production.axe()?List.of(OakPlankProduction.ID,BirchPlankProduction.ID,StickProduction.ID,
                 CraftingTableProduction.ID,WoodenAxeProduction.ID)
                 : exactLegacy && production.table()?List.of(OakPlankProduction.ID,capability):List.of(capability);
         for(var id:capabilities) {
             if(exactLegacy && production.axe() && id.equals(BirchPlankProduction.ID))continue;
             var target=id.equals(capability)?destination:source;
-            long travel=FabricProductionTravel.recipe(position(nativeActor),source,target,
+            var start=position(nativeActor);
+            long travel=singleBatchPlanks?FabricProductionTravel.singleBatchInputAndDelivery(start,source,target)
+                    :FabricProductionTravel.recipe(start,source,target,
                     id.equals(WoodenAxeProduction.ID) && facility!=null?facility.reference():null,
                     facility==null?null:facility.reference());
             if(id.equals(WoodenAxeProduction.ID) && facility!=null && facility.availability()==Availability.PRESENT
                     && !separateSticks && goal.demand()>=4 && clearTableFloor(nativeActor,actor,source,target,facility.reference()))
-                travel=FabricProductionTravel.existingTableOnClearFloor(position(nativeActor),source,target,facility.reference());
+                travel=FabricProductionTravel.existingTableOnClearFloor(start,source,target,facility.reference());
             if(id.equals(WoodenAxeProduction.ID) && facility!=null && separateSticks)
                 travel=Math.addExact(travel,FabricProductionTravel.separateStickLeg(source,authorizedSources.getLast(),facility.reference()));
             RecipeProfile profile;

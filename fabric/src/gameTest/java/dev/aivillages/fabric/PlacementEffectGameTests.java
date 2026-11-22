@@ -1,5 +1,7 @@
 package dev.aivillages.fabric;
 import java.util.*;
+import java.time.Clock;
+import java.util.concurrent.CompletableFuture;
 import dev.aivillages.core.kernel.*;
 import static dev.aivillages.core.kernel.Contracts.*;
 import static dev.aivillages.core.kernel.Outcomes.Reason;
@@ -34,12 +36,17 @@ public final class PlacementEffectGameTests {
         var request=new CapabilityRequest(CraftingTablePlacement.ID,Map.of("actor",new ActorValue(actor),
                 "source",new ContainerValue(source),"target",new FacilityValue(target),"amount",new IntValue(1)),held);
         var bound=new ValidatedRequest(request,owner,new ObservationRef(UUID.randomUUID(),0,dim));
-        var world=new FabricGatewayWorld(h.getLevel());var clock=java.time.Clock.systemUTC();
-        var gateway=new SurvivalGateway(world,(a,e,c)->true,new SurvivalGateway.Limits(8,512,64,16,256,1,200,32),clock);
-        var usage=new Budgets.Ledger(OakPlankProduction.executionLimits(clock.millis()).total(),clock);
+        var world=new FabricGatewayWorld(h.getLevel());var clock=Clock.systemUTC();
+        var nativeGateway=new SurvivalGateway(world,(a,e,c)->actor.equals(a)&&owner.equals(c),new SurvivalGateway.Limits(8,512,64,16,256,1,200,32),clock);
+        var allowance=OakPlankProduction.executionLimits(clock.millis()).total();
+        var correlation=new RunCorrelation(run,new ArtifactRef(CraftingTablePlacement.ID,"b".repeat(64)),null);
+        var heldRun=held?leasedPlacement(h,bound,correlation,source,actor,nativeGateway,allowance,clock):null;
+        GatewayPort gateway=heldRun==null?nativeGateway:heldRun.gateway();
+        var usage=new Budgets.Ledger(allowance,clock);
         Container from=(Container)h.getLevel().getBlockEntity(sourcePos);var operations=CraftingTablePlacement.operations();
         int[] phase={-1};ActionHandle[] active={null};var receipts=new ArrayList<ResourceDelivery.Receipt>();
         h.succeedWhen(()->{
+            if(heldRun!=null)heldRun.leases().tick();
             if(phase[0]<0){
                 if(!v.onGround()){h.assertTrue(false,"Waiting for native actor landing");return;}
                 if(held){
@@ -56,7 +63,7 @@ public final class PlacementEffectGameTests {
             var op=operations.get(phase[0]);
             if(active[0]==null){
                 var args=new LinkedHashMap<String,Value>();op.signature().parameters().forEach(p->args.put(p.name(),bound.request().arguments().get(p.name())));
-                active[0]=gateway.start(bound,new RunCorrelation(run,new ArtifactRef(CraftingTablePlacement.ID,"b".repeat(64)),null),op.requirement(),args,usage);
+                active[0]=gateway.start(bound,correlation,op.requirement(),args,usage);
             }
             var result=gateway.poll(active[0]);
             if(!result.terminal()){h.assertTrue(false,"Waiting for explicit native "+op);return;}
@@ -66,6 +73,13 @@ public final class PlacementEffectGameTests {
                     && from.countItem(held?Items.COBBLESTONE:Items.CRAFTING_TABLE)==1
                     && v.getInventory().countItem(Items.CRAFTING_TABLE)==(held?2:0)
                     && v.getBoundingBox().intersects(new net.minecraft.world.phys.AABB(targetPos))==!overhead,"Structural observation moved the actor or mutated custody");
+            if(heldRun!=null && phase[0]==0){
+                var claims=heldRun.leases().snapshot().leases();var worldId=owner.scope().worldId();
+                h.assertTrue(claims.size()==2 && claims.stream().allMatch(l->l.state()==ResourceLeases.State.ACTIVE)
+                        && claims.stream().map(ResourceLeases.Lease::resource).collect(java.util.stream.Collectors.toSet()).equals(Set.of(
+                        ResourceLeases.Resource.recipeSource(worldId,source),ResourceLeases.Resource.space(worldId,CraftingTablePlacement.workspace(request)))),
+                        "Held placement coordinates the native container and site without claiming container table stock");
+            }
             if(held && op==GatewayPrimitives.Operation.WITHDRAW_TABLE_ITEM)
                 h.assertTrue(from.countItem(Items.COBBLESTONE)==1 && v.getInventory().getItem(0).getCount()==1
                         && v.getInventory().getItem(1).is(Items.CRAFTING_TABLE) && v.getInventory().getItem(1).getCount()==1,
@@ -78,9 +92,35 @@ public final class PlacementEffectGameTests {
                     && (held?from.countItem(Items.COBBLESTONE)==1 && v.getInventory().getItem(0).getCount()==1
                                 && v.getInventory().getItem(1).isEmpty():from.isEmpty() && v.getInventory().isEmpty())
                     && h.getLevel().getBlockState(targetPos).is(Blocks.CRAFTING_TABLE),"Self-occupied placement failed native conservation");
-            gateway.releaseRun(run);
+            if(heldRun!=null)heldRun.gateway().releaseRun(run);else nativeGateway.releaseRun(run);
             System.out.println((overhead?"RB006B_CENTER_RAY":"RB006B_SELF_OCCUPANCY")+" nativeNavigation=true structuralObservation=true noImplicitMove=true safeInput=true safeFace=true consumed=1 placed=1 depletedSource=true");
         });
+    }
+    private record LeasedPlacement(ResourceLeaseService leases,LeasedGateway gateway) { }
+    private static LeasedPlacement leasedPlacement(GameTestHelper h,ValidatedRequest bound,RunCorrelation run,
+            ContainerRef source,ActorRef actor,SurvivalGateway nativeGateway,Budgets.Limits allowance,Clock clock) {
+        var owner=bound.context();var world=owner.scope().worldId();var root=UUID.randomUUID();
+        var jobs=new JobLifecycleStore(Jobs.Snapshot.empty(world),(before,after)->CompletableFuture.completedFuture(after),
+                JobLifecycleStore.privateJobs((a,c)->actor.equals(a)&&owner.equals(c)),cancel->{},
+                id->id.equals(CraftingTablePlacement.ID)?Optional.of(CraftingTablePlacement.SPEC):Optional.empty(),
+                new RequestEnvironment() {
+                    public boolean enrolled(ActorRef a,TrustedContext c){return actor.equals(a)&&owner.equals(c);}
+                    public boolean loaded(Cuboid area,ObservationRef observation){return area.dimension().equals(actor.dimension());}
+                    public boolean available(ContainerRef container,ObservationRef observation){return source.equals(container);}
+                },clock,Jobs.Settings.defaults(),false);
+        h.assertTrue(jobs.create(root,root,bound.request(),owner,bound.observation(),allowance,List.of()).accepted(),"Original held request");
+        jobs.tick();
+        h.assertTrue(jobs.assign(root,jobs.query(root,owner).guard(),run.runId(),actor,run.artifact(),List.of(run.artifact()),allowance,owner).accepted(),"Original held assignment");
+        jobs.tick();
+        h.assertTrue(jobs.query(root,owner).current().bound().equals(bound),"Durable assignment preserves the exact held choice");
+        JobLifecycleStore.validateSnapshot(jobs.snapshot(),jobs.settings());
+        var owners=new JobLeaseOwners(jobs,clock);
+        var ticks=(java.util.function.LongSupplier)h.getLevel().getServer().overworld()::getGameTime;
+        var leases=new ResourceLeaseService(ResourceLeases.Snapshot.empty(world),(before,after)->CompletableFuture.completedFuture(after),
+                owners,new FabricResourceLeaseWorld(h.getLevel().getServer()),ResourceLeases.Settings.production(),ticks,clock,false);
+        var gateway=new LeasedGateway(nativeGateway,leases,(request,correlation)->LeasedGateway.workspaces(owners,request,correlation),
+                ticks,1200,200,8,64);
+        return new LeasedPlacement(leases,gateway);
     }
     @GameTest(maxTicks=1000,padding=16)
     public void fallingAfterWithdrawalWaitsForNativeLandingAndCraftsOneBatch(GameTestHelper h){
