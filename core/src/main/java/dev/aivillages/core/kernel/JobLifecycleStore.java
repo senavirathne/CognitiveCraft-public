@@ -498,6 +498,11 @@ public final class JobLifecycleStore {
     public Change createProductionActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,
                                            Budgets.Limits allowance,int plannedSteps,Cuboid acquisition,ContainerRef additionalSource,
                                            ActivityPayload.OriginalStock originalStock) {
+        return createProductionActivity(id,goal,caller,observation,allowance,plannedSteps,acquisition,additionalSource,originalStock,false);
+    }
+    public Change createProductionActivity(UUID id,CapabilityRequest goal,TrustedContext caller,ObservationRef observation,
+                                           Budgets.Limits allowance,int plannedSteps,Cuboid acquisition,ContainerRef additionalSource,
+                                           ActivityPayload.OriginalStock originalStock,boolean observedDestination) {
         if(goal==null || !RecipeProduction.is(goal.capability()))return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
         try {
             if(additionalSource!=null && (acquisition!=null || RecipeProduction.of(goal.capability()).axe()
@@ -505,7 +510,7 @@ public final class JobLifecycleStore {
                     || !source.value().dimension().equals(additionalSource.dimension()) || source.value().equals(additionalSource)))
                 return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);
             var payload=ActivityPayload.initial(goal.capability(),plannedSteps)
-                    .planning(ActivityPayload.ProductionControl.initial(acquisition,additionalSource,originalStock));
+                    .planning(ActivityPayload.ProductionControl.initial(acquisition,additionalSource,originalStock,observedDestination));
             return create(id,id,goal,caller,observation,allowance,List.of(),false,0,0,payload);
         } catch(IllegalArgumentException invalid){return new Change(Code.REJECTED,null,Reason.REQUEST_INVALID,0);}
     }
@@ -600,6 +605,7 @@ public final class JobLifecycleStore {
                 && Objects.equals(previous.acquisition(),next.acquisition())
                 && Objects.equals(previous.additionalSource(),next.additionalSource())
                 && previous.originalStock()==next.originalStock()
+                && previous.observedDestination()==next.observedDestination()
                 && (previous.plan()==null || previous.plan().equals(next.plan()))
                 && next.coveredActions().entrySet().containsAll(previous.coveredActions().entrySet());
     }

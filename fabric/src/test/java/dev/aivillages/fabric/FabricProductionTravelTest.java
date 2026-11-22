@@ -82,4 +82,11 @@ class FabricProductionTravelTest {
         assertThrows(IllegalArgumentException.class,()->FabricProductionTravel.recipe(at(0,0,0),at(1,0,0),
                 new ContainerRef("minecraft:the_nether",1,0,0),null,null));
     }
+    @Test void fourBatchesAtAnExistingTableCanFitTheUnchangedTravelAllowance() {
+        var start=at(80,208,67);var source=at(68,208,72);var destination=at(76,208,70);
+        var table=new FacilityRef("minecraft:overworld",79,208,74);
+        assertTrue(4*FabricProductionTravel.recipe(start,source,destination,table,table)>128);
+        assertEquals(31,FabricProductionTravel.existingTableOnClearFloor(start,source,destination,table));
+        assertTrue(4*FabricProductionTravel.existingTableOnClearFloor(start,source,destination,table)<=128);
+    }
 }

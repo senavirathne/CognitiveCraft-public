@@ -21,18 +21,18 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     public record ProductionControl(Cuboid acquisition, int decisions, PlanningModel.Memory memory,
                                     String blocker, long nextCheckMillis,ActivityPlan plan,
                                     Map<UUID,List<String>> coveredActions,ContainerRef additionalSource,
-                                    OriginalStock originalStock) {
+                                    OriginalStock originalStock,boolean observedDestination) {
         public static final int MAX_DECISIONS=32;
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of(),null,null);
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,null,Map.of(),null,null,false);
         }
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis,
                                  ActivityPlan plan,Map<UUID,List<String>> coveredActions) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,null,null);
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,null,null,false);
         }
         public ProductionControl(Cuboid acquisition,int decisions,PlanningModel.Memory memory,String blocker,long nextCheckMillis,
                                  ActivityPlan plan,Map<UUID,List<String>> coveredActions,ContainerRef additionalSource) {
-            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,additionalSource,null);
+            this(acquisition,decisions,memory,blocker,nextCheckMillis,plan,coveredActions,additionalSource,null,false);
         }
         public ProductionControl {
             Objects.requireNonNull(memory);Objects.requireNonNull(blocker);
@@ -60,16 +60,20 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
             return initial(source,additionalSource,null);
         }
         public static ProductionControl initial(Cuboid source,ContainerRef additionalSource,OriginalStock originalStock){
-            return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0,null,Map.of(),additionalSource,originalStock);
+            return initial(source,additionalSource,originalStock,false);
+        }
+        public static ProductionControl initial(Cuboid source,ContainerRef additionalSource,OriginalStock originalStock,
+                                                boolean observedDestination){
+            return new ProductionControl(source,0,PlanningModel.Memory.empty(),"",0,null,Map.of(),additionalSource,originalStock,observedDestination);
         }
         public ProductionControl next(PlanningModel.Memory next,String reason,long checkAt){
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions,additionalSource,originalStock);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,reason,checkAt,plan,coveredActions,additionalSource,originalStock,observedDestination);
         }
         public ProductionControl prepared(PlanningModel.Memory next,ActivityPlan pinned,UUID proposal,List<String> tokens) {
             if(plan!=null && !plan.equals(pinned))throw new IllegalArgumentException("Original pinned production plan changed");
             var actions=new HashMap<>(coveredActions);
             if(actions.putIfAbsent(proposal,List.copyOf(tokens))!=null)throw new IllegalArgumentException("Duplicate authoritative proposal");
-            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions,additionalSource,originalStock);
+            return new ProductionControl(acquisition,Math.addExact(decisions,1),next,"",0,pinned,actions,additionalSource,originalStock,observedDestination);
         }
     }
     public ActivityPayload(GoalMode mode,Policy policy,int plannedSteps,UUID currentStep,List<Step> steps,

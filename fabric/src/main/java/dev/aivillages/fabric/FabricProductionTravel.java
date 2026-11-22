@@ -26,6 +26,17 @@ final class FabricProductionTravel {
         // and cannot pass through the chest or stand inside the prospective table footprint.
         return Math.addExact(recipe(start,source,destination,null,site),INTERACTION_CELLS);
     }
+    static long existingTableOnClearFloor(ContainerRef start,ContainerRef source,ContainerRef destination,FacilityRef facility) {
+        var table=point(facility);
+        // On a witnessed level floor, the native worker can approach each face
+        // inside its existing reach. Reserve two cells for the selected arrival side
+        // before a repeated trip. The original allowance still meters actual motion.
+        long approach=Math.max(interactionLeg(start,source),Math.addExact(distance(destination,source),2));
+        return Math.addExact(approach,Math.addExact(interactionLeg(source,table),interactionLeg(table,destination)));
+    }
+    private static long interactionLeg(ContainerRef from,ContainerRef to) {
+        return Math.max(0,distance(from,to)-2);
+    }
     static long acquisition(ContainerRef start,ContainerRef staging,List<ContainerRef> eligible) {
         if(eligible.isEmpty() || eligible.size()>256)throw new IllegalArgumentException("Bounded actual acquisition targets required");
         long worst=0;

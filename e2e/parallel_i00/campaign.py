@@ -14,7 +14,7 @@ from uuid import uuid4
 from .frozen_campaign import ORIGINAL_SHA256, controls_for, material_controls, original, shard
 from .gameplay import NativeGameplay, ROOT, witness_identity
 from .native_evidence import exact_withdrawals, jsonl, raw_slices, require_command, stock_at, verify_installation
-from campaigns.crafting.harness import CraftingHarness, observer_inputs
+from campaigns.crafting.harness import CraftingHarness, RECOVERY_REUSE, observer_inputs
 from campaigns.crafting.evidence import PASS_STATUSES, evidence_path
 from campaigns.crafting.invariants import composition_balance, recipe_balance, totals, delta
 from campaigns.crafting.run import needed_artifacts, run_case
@@ -48,7 +48,8 @@ def requires_exact_choice(case):
     if case["mode"] != "recipe" or "grid" not in case:
         return False
     ingredients = {item for item in case["grid"] if item}
-    return ingredients != DIRECT_INGREDIENTS.get(case["output"]) or bool(case.get("missingAdapter"))
+    return (ingredients != DIRECT_INGREDIENTS.get(case["output"]) or bool(case.get("missingAdapter"))
+            or case.get("dynamic") == "competing-actors")
 
 
 class OriginalCampaign(NativeGameplay):
@@ -83,6 +84,47 @@ class OriginalCampaign(NativeGameplay):
                 "Actual boundary belongs to a different native request")
         self.event("i00-campaign-cut-frozen", mark)
         return mark
+
+    def select_recovery_reuse_actor(self, case):
+        self.use_actor(1 - case["actor"])
+
+    def compete_for_stock(self, case):
+        first = self.submit_command(self.command_text(case))
+        require(first["accepted"] and first["kind"] == "job", "First shared-stock requester was not admitted")
+        try:
+            self.use_actor(1 - case["actor"])
+            second = self.submit_command(self.command_text(case))
+            require(second["accepted"] and second["kind"] == "job", "Second shared-stock requester was not admitted")
+
+            def overlap():
+                frame = self.snapshot()
+                jobs = frame["knownPlayers"]["PlayerA"]["jobs"]
+                owners = [jobs.get(order["identity"]) for order in (first, second)]
+                return frame if all(job and job["state"] in {"READY", "WAITING", "ACTIVE"} for job in owners) else None
+
+            both = self.wait(overlap, "Two original Jobs overlap under one physical stock constraint", 30)
+        finally:
+            self.use_actor(case["actor"])
+
+        def allocation():
+            views = [self.views(order) for order in (first, second)]
+            if any(not v for v in views) or self.container(self.source, "minecraft:oak_log") != 0:
+                return None
+            states = [v[0]["state"] for v in views]
+            if states.count("SUCCEEDED") == 1 and states.count("WAITING") == 1:
+                return [v[0] for v in views]
+            return None
+
+        allocated = self.wait(allocation, "Real stock is exhausted by exactly one original owner", 110)
+        loser = next(order for order, view in zip((first, second), allocated, strict=True) if view["state"] == "WAITING")
+        require(not self.receipts_for(loser), "Waiting competitor has unaccounted native effects")
+        cancellation = self.cancel_job("PlayerA", loser["identity"])
+        first_result, second_result = (self.finish_request(order) for order in (first, second))
+        first_result["competitor"] = {"request": second, "result": second_result}
+        first_result["competitionWitnessed"] = True
+        first_result["competition"] = {"overlap": both, "allocated": allocated,
+                                       "loser": loser["identity"], "cancellation": cancellation}
+        return first, first_result
 
     def fence_measured_case(self, case, row):
         if not isolated(case):
@@ -302,6 +344,22 @@ def review_case(case, row, root, pins, recipes, validate):
                 and mark[key] == request["identity"] and mark["principal"] == row["bindings"]["player"]
                 and mark["boundary"] == case["boundary"] and mark["rate"] == 20 and mark["frozen"],
                 "Missing actual original campaign boundary under the normal clock")
+        if case["interruption"] == "restart":
+            reuse = row["execution"]["offlineReuse"]
+            old = row["execution"]["postInterruption"]["state"]
+            before, after = reuse["before"], reuse["after"]
+            source, destination, facility = [",".join(map(str, p)) for p in RECOVERY_REUSE]
+            require(reuse["originalActor"] == row["bindings"]["actor"] and reuse["reuseActor"] != reuse["originalActor"]
+                    and reuse["methodPins"] == [pins["minecraft:wooden_axe"]]
+                    and reuse["request"]["identity"] != request["identity"] and reuse["result"]["completed"]
+                    and before["containers"][source] == {"minecraft:oak_planks": 3, "minecraft:stick": 2}
+                    and not before["containers"][destination] and "minecraft:crafting_table" in before["blocks"][facility]
+                    and after["containers"][destination].get("minecraft:wooden_axe") == 1
+                    and stock_at(old, reuse["originalActor"]) == stock_at(after, reuse["originalActor"]),
+                    "Offline reuse lost its distinct actor, saved stock or original custody")
+            events = "clients/PlayerA/events.jsonl"
+            require_command(raw_slices(root, row, {events})[events], reuse["request"]["command"],
+                            reuse["request"]["feedback"], "PlayerA")
     if integrated:
         events = "clients/PlayerA/events.jsonl"
         path = raw_slices(root, row, {events})[events]
@@ -313,6 +371,36 @@ def review_case(case, row, root, pins, recipes, validate):
     require(balanced and delta(before, after) == row["physicalDelta"], "Native world quantities do not independently reconcile")
     if case.get("distribution") == "held":
         review_held_sticks(case, row, root)
+    if case.get("dynamic") == "break-facility":
+        req = row["request"]
+        mark = row["execution"]["dynamic"]["nativeClock"]
+        key = "submission" if req["kind"] == "run" else "root"
+        require(mark == read(root / "server/i00-native-boundary-reached.json") and mark[key] == req["identity"]
+                and mark["principal"] == row["bindings"]["player"] and mark["boundary"] == "after-withdrawal"
+                and mark["rate"] == 20 and mark["frozen"], "Facility break missed the original withdrawal at normal speed")
+    if case.get("dynamic") == "competing-actors":
+        execution = row["execution"]
+        competition = execution["competition"]
+        second = execution["competitor"]
+        orders = [row["request"], second["request"]]
+        ids = [order["identity"] for order in orders]
+        views = [execution["views"][0], second["result"]["views"][0]]
+        overlap = competition["overlap"]
+        owner_view = overlap["knownPlayers"]["PlayerA"]
+        observed = [owner_view["jobs"][identifier] for identifier in ids]
+        require(owner_view["online"] and owner_view["uuid"] == row["bindings"]["player"]
+                and [job["id"] for job in observed] == ids
+                and len({job["responsible"]["entityId"] for job in observed}) == 2
+                and all(job["state"] in {"READY", "WAITING", "ACTIVE"} and job["fulfilled"] == 0 for job in observed)
+                and [job["id"] for job in views] == ids and {job["state"] for job in views} == {"SUCCEEDED", "CANCELLED"}
+                and sum(job["fulfilled"] for job in views) == row["requested"] == row["delivered"]
+                and "cancellation=true" in competition["cancellation"]
+                and not any(a["resourceReceipts"] for job in views if job["id"] == competition["loser"] for a in job["attempts"]),
+                "Original contenders or attributed stock changed")
+        events = "clients/PlayerA/events.jsonl"
+        path = raw_slices(root, row, {events})[events]
+        for order in orders:
+            require_command(path, order["command"], order["feedback"], "PlayerA")
     if case.get("dynamic") == "fill-destination":
         added = row["execution"]["dynamic"]["externalFill"]
         item = case["output"]

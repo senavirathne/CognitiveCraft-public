@@ -149,9 +149,14 @@ def validate_row(root, row, case, directory, seen, admissions):
                         and ticket["acceptedMillis"] < event["eligibleMillis"] <= row["settledMillis"],
                         "Actor B lacked a real wait and connected donor stock witness")
     elif case["role"] == "admitted-failure":
+        removed = frame(root, event["removedFrame"])
+        admitted = job_at(removed, ticket)
         require(job["state"] == "FAILED" and job["reason"] in ("TARGET_UNAVAILABLE", "STALE_OBSERVATION")
                 and job["fulfilled"] == 0 and not receipts and stock_before == stock_after and delivered == retained == 0
                 and "minecraft:chest" in before["blocks"][point(case["destination"])]
+                and admitted and admitted["state"] not in TERMINAL and not admitted["attempts"]
+                and before["gameTick"] == removed["gameTick"]
+                and "minecraft:air" in removed["blocks"][point(case["destination"])]
                 and "minecraft:air" in after["blocks"][point(case["destination"])]
                 and event["obstruction"]["play"] is True, "Expected admitted physical obstruction failure did not occur")
     elif case["role"] == "settled-cancellation":
@@ -399,11 +404,13 @@ def main():
     parser.add_argument("--jar-sha256", required=True)
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
+    exact = candidate(args.source, args.jar_sha256)
     try:
         value = review(args.root, args.source, args.jar_sha256)
     except Exception as failure:
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(json.dumps({"status": "FAIL_INDEPENDENT_NATIVE_ENDURANCE", "reason": str(failure)}, indent=2) + "\n")
+        args.out.write_text(json.dumps({**exact, "status": "FAIL_INDEPENDENT_NATIVE_ENDURANCE",
+                                        "reason": str(failure)}, indent=2) + "\n")
         raise
     args.out.write_text(json.dumps(value, indent=2) + "\n")
     print(json.dumps(value))

@@ -9,7 +9,7 @@ import time
 
 from suite import UUID_PATTERN, atomic, read, require, reconnect_players
 from .generator import LOG, OAK, BIRCH, STICK, AXE, TABLE
-from .harness import AdmissionBlocked, BoundaryMissed, coord, LO, HI, POSITIONS, fixture_observation
+from .harness import AdmissionBlocked, BoundaryMissed, coord, LO, HI, POSITIONS, RECOVERY_REUSE, fixture_observation
 from .invariants import totals, recipe_balance, composition_balance, delta, physical_custody, interruption_verification
 from .oracle import requirements, rotated_cells
 from .recipe_model import rules, demands
@@ -203,8 +203,11 @@ def execute_recovery(h, case):
         result["nativeClock"] = clock_cut
     if case["interruption"] == "cancel":
         command = "job-cancel" if request["kind"] == "job" else "cancel"
+        acknowledgement = "cancel|CANCEL|denied|unavailable"
+        if request["kind"] == "run":
+            acknowledgement += "|run=" + request["identity"] + r"\b"
         result["cancellation"] = h.command("PlayerA", "/aivillage kernel " + command + " " + request["identity"],
-                                            "cancel|CANCEL|denied|unavailable", 40)
+                                            acknowledgement, 40)
         h.clock("tick unfreeze"); h.clock("tick rate 20")
         result.update(h.finish_request(request, 80))
     else:
@@ -236,13 +239,16 @@ def execute_recovery(h, case):
     result["postInterruption"] = {"state": fence, "client": fence_client}
     if case["interruption"] == "restart":
         h.assert_backend_stopped()
-        # New explicit request, changed bindings, preserved old custody. No automatic replay.
-        h.source, h.destination, h.facility = [67, 208, 76], [71, 208, 76], [73, 208, 76]
-        h.stock(h.source, {OAK: 3, STICK: 2}, "barrel")
-        h.stock(h.destination, {}, "chest")
-        h.console(["setblock " + coord(h.facility) + " minecraft:crafting_table"])
+        # A distinct order uses stock staged before the original checkpoint.
+        original_actor = h.entities["PlayerA"]
+        original_bindings = (h.source, h.destination, h.facility)
+        h.source, h.destination, h.facility = (list(point) for point in RECOVERY_REUSE)
+        if hasattr(h, "select_recovery_reuse_actor"):
+            h.select_recovery_reuse_actor(case)
         reuse_case = {"mode": "recipe", "output": AXE, "quantity": 1}
         reuse_before, reuse_client = h.snapshot(), h.client_snapshot("PlayerA")
+        require(h.container(h.source, OAK) == 3 and h.container(h.source, STICK) == 2
+                and h.container(h.destination, AXE) == 0, "Reserved offline stock changed before the new order")
         calls = h.model_calls()
         reuse_request = h.submit_command(h.command_text(reuse_case))
         reuse = h.finish_request(reuse_request, 200)
@@ -250,9 +256,22 @@ def execute_recovery(h, case):
         reuse_after = h.snapshot()
         ok, conservation = composition_balance(totals(reuse_before, reuse_client),
                                                 totals(reuse_after, h.client_snapshot("PlayerA")), h.recipes)
+        reuse_actor = h.entities["PlayerA"]
+        if reuse_actor != original_actor:
+            before_custody, after_custody = physical_custody(fence), physical_custody(reuse_after)
+            require(before_custody["actors"][original_actor] == after_custody["actors"][original_actor]
+                    and all(before_custody[field].get(",".join(map(str, point))) ==
+                            after_custody[field].get(",".join(map(str, point)))
+                            for field in ("blocks", "containers") for point in original_bindings)
+                    and before_custody["drops"] == after_custody["drops"]
+                    and h.receipts_for(request) == result["receipts"],
+                    "Offline reuse changed the unresolved original custody")
+        artifacts, pins = check_artifacts(h, reuse)
+        require(artifacts and pins == [h.artifacts[AXE]], "Offline reuse lost the admitted axe method")
         result["offlineReuse"] = {"request": reuse_request, "result": reuse, "before": reuse_before,
                                   "after": reuse_after, "conservation": conservation, "conserved": ok,
-                                  "delivered": h.container(h.destination, AXE), "calls": calls}
+                                  "delivered": h.container(h.destination, AXE), "calls": calls,
+                                  "originalActor": original_actor, "reuseActor": reuse_actor, "methodPins": pins}
         require(ok and reuse["completed"] and h.container(h.destination, AXE) == 1,
                 "Changed-binding offline reuse did not produce one conserved physical axe")
     return request, result
@@ -261,6 +280,8 @@ def execute_recovery(h, case):
 def execute_dynamic(h, case):
     event = case["dynamic"]
     if event == "competing-actors":
+        if hasattr(h, "compete_for_stock"):
+            return h.compete_for_stock(case)
         h.clock("tick rate 2")
         try:
             request = h.submit_command(h.command_text(case))
@@ -278,7 +299,9 @@ def execute_dynamic(h, case):
     if event != "break-facility":
         h.action("PlayerA", "open", pos=target)
         h.wait(lambda: h.client_snapshot("PlayerA")["menu"] > 0, "Connected mutation menu")
-    h.clock("tick rate 2")
+    control = h.arm_recovery({**case, "boundary": "after-withdrawal"}) if event == "break-facility" and hasattr(h, "arm_recovery") else None
+    if not control:
+        h.clock("tick rate 2")
     request = h.submit_command(h.command_text(case))
     if not request["accepted"]:
         h.clock("tick rate 20")
@@ -288,6 +311,7 @@ def execute_dynamic(h, case):
         withdrawals = sum(r["quantity"] for r in rows if r["stage"] == "WITHDRAW")
         return h.views(request) if 0 < withdrawals < (10 if case["output"] == AXE else 2) else None
     try:
+        native_clock = h.recovery_cut(control, request) if control else None
         witness = h.wait(first_batch, "First withdrawal before second batch", 160)
     except TimeoutError as error:
         raise BoundaryMissed(str(error)) from error
@@ -324,10 +348,14 @@ def execute_dynamic(h, case):
                     if s["playerInventory"] and s["item"] == LOG)
         if moved < 1:
             raise BoundaryMissed("No remaining ingredient was physically transferred to the player")
+    if control:
+        h.clock("tick unfreeze")
     h.clock("tick rate 20")
     result = h.finish_request(request, 200)
     result["dynamic"] = {"event": event, "boundary": witness, "mutation": mutation,
                          "client": h.client_snapshot("PlayerA"), "witnessed": True}
+    if native_clock:
+        result["dynamic"]["nativeClock"] = native_clock
     if external_fill is not None:
         result["dynamic"]["externalFill"] = external_fill
     return request, result

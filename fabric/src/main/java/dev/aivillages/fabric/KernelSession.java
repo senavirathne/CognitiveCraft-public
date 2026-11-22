@@ -1768,9 +1768,11 @@ public final class KernelSession implements AutoCloseable {
         Cuboid acquisition=null;
         if(gather && activityCheckpoints!=null)acquisition=new Cuboid(source.dimension(),source.x()-4,source.y()-1,source.z()-4,
                 source.x()+4,source.y()+1,source.z()+4);
+        boolean observedDestination=worldAccess.inspectRecipeContainer(destination,RecipeProduction.of(request.capability()).output())
+                .status()==ObservationStatus.PRESENT;
         jobs.tick();
         var change=jobs.createProductionActivity(id,request,owner,observation,OakPlankProduction.executionLimits(clock.millis()).total(),
-                ActivityPayload.MAX_STEPS,acquisition,additionalSource);
+                ActivityPayload.MAX_STEPS,acquisition,additionalSource,null,observedDestination);
         return new BootstrapController.Submission(id,change.accepted(),change.reason());
     }
     private boolean activitySettled(Jobs.Job job) {

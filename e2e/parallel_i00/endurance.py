@@ -1,6 +1,7 @@
 """Drive 1,000 real, terminal activities in one Minecraft Docker world."""
 
 import argparse
+from contextlib import contextmanager
 import gzip
 from hashlib import sha256
 import json
@@ -77,6 +78,19 @@ class EnduranceHarness(JobHarness):
 
     def observation(self):
         return read(self.root / "server/secondary-snapshot.json")
+
+    @contextmanager
+    def pause_before_dispatch(self):
+        offset = len(self.server_log())
+        self.console(["tick freeze"], lifecycle=True)
+        self.wait(lambda: "frozen" in self.server_log()[offset:].lower(), "Pause native dispatch at the original clock")
+        try:
+            ready = int(time.time() * 1000)
+            frame = self.wait(lambda: state if (state := self.observation())["time"] >= ready else None,
+                              "Native observer sampled the original frozen clock")
+            yield frame["gameTick"]
+        finally:
+            self.console(["tick unfreeze"], lifecycle=True)
 
     def capture(self, directory, label):
         data = (self.root / "server/secondary-snapshot.json").read_bytes()
@@ -262,18 +276,27 @@ def finish_case(h, case, writing, event=None):
 def single_case(h, case):
     h.actions_active = False
     h.reserve_stock()
-    writing = start_case(h, case)
-    folder, ticket, _ = writing
     event = None
-    if case["role"] == "settled-cancellation":
-        event = {"cancellation": h.cancel_job(ticket["player"], ticket["root"])}
-    elif case["role"] == "admitted-failure":
-        h.await_job(ticket, lambda _, job: job["state"] not in TERMINAL, "Admitted original failure candidate")
+    if case["role"] == "admitted-failure":
         h.walk("PlayerB", case["destination"], reach=2.6)
-        h.action("PlayerB", "break", pos=case["destination"])
-        h.wait(lambda: "minecraft:air" in h.block(case["destination"]), "Native player breaks existing destination", 30)
-        event = {"obstruction": h.client_snapshot("PlayerB")}
-    elif case["role"] == "partial-custody":
+    if case["role"] in {"admitted-failure", "settled-cancellation"}:
+        with h.pause_before_dispatch() as paused_tick:
+            writing = start_case(h, case)
+            folder, ticket, _ = writing
+            if case["role"] == "settled-cancellation":
+                event = {"cancellation": h.cancel_job(ticket["player"], ticket["root"])}
+            else:
+                h.await_job(ticket, lambda _, job: job["state"] not in TERMINAL and not job["attempts"],
+                            "Acknowledged original failure candidate before dispatch")
+                h.action("PlayerB", "break", pos=case["destination"])
+                h.wait(lambda: "minecraft:air" in h.block(case["destination"]), "Native player breaks existing destination", 30)
+                obstruction, cut = h.capture(folder, "destination-removed")
+                require(obstruction["gameTick"] == paused_tick, "Activity clock advanced before the destination was removed")
+                event = {"obstruction": h.client_snapshot("PlayerB"), "removedFrame": cut}
+    else:
+        writing = start_case(h, case)
+        folder, ticket, _ = writing
+    if case["role"] == "partial-custody":
         before = json.loads(gzip.decompress((h.root / writing[2]["path"]).read_bytes()))
         first = next(actor for actor in before["actors"] if actor["uuid"] == ticket["actor"])["inventory"].get(PLANK, 0)
         def partial(state, job):
@@ -292,6 +315,8 @@ def contend(h, first, second):
     h.actions_active = False
     h.walk("PlayerB", list(SHARED), reach=2.5)
     a = start_case(h, first)
+    h.await_job(a[1], lambda _, job: job["state"] == "ACTIVE" and job["attempts"],
+                "First original owner reserved the scarce stock")
     b = start_case(h, second)
     def overlap():
         frame = h.observation()

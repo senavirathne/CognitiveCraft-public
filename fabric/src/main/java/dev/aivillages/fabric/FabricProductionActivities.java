@@ -6,6 +6,7 @@ import dev.aivillages.core.kernel.runtime.activity.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.level.block.Blocks;
 import java.time.Clock;
 import java.util.*;
 import static dev.aivillages.core.kernel.Contracts.*;
@@ -67,7 +68,8 @@ final class FabricProductionActivities {
     }
 
     void step(java.util.function.Predicate<Jobs.Job> previousCheckpointSettled) {
-        if(!jobs.ready() || !leases.ready() || level.getGameTime()%4!=0)return;
+        if(!jobs.ready() || !leases.ready() || level.getServer().tickRateManager().isFrozen()
+                || level.getGameTime()%4!=0)return;
         var rows=jobs.snapshot().jobs();
         waitingObservations.keySet().removeIf(id->rows.stream().noneMatch(j->j.id().equals(id)&&!j.state().terminal()));
         for(int visited=0;visited<Math.min(4,rows.size());visited++) {
@@ -77,6 +79,12 @@ final class FabricProductionActivities {
             if(activity==null || activity.production()==null || activity.current()!=null || job.state().terminal()
                     || job.current()!=null && job.current().open() || job.cancellationOutcome()!=null)continue;
             var control=activity.production();
+            if(control.observedDestination() && activity.steps().isEmpty() && job.attempts().isEmpty()
+                    && clock.millis()<job.allowance().deadlineEpochMillis()
+                    && originalDestinationRemoved(job)) {
+                jobs.transition(job.id(),job.guard(),Jobs.State.FAILED,Outcomes.Reason.TARGET_UNAVAILABLE,job.origin());
+                return;
+            }
             if(control.decisions()==ActivityPayload.ProductionControl.MAX_DECISIONS
                     || clock.millis()<control.nextCheckMillis() && control.nextCheckMillis()!=Long.MAX_VALUE
                     || clock.millis()>=job.allowance().deadlineEpochMillis() || !previousCheckpointSettled.test(job)
@@ -117,6 +125,14 @@ final class FabricProductionActivities {
             }
             return; // At most one decision publication through the current Jobs writer.
         }
+    }
+
+    private boolean originalDestinationRemoved(Jobs.Job job) {
+        var request=job.request().request();
+        var target=ResourceDelivery.destinationAddress(request);
+        var block=pos(target);
+        return allowed(job.request(),Effect.TRANSFER,target) && world.loadedForDiscovery(block)
+                && level.getBlockState(block).isAir();
     }
 
     RecipeTransaction.ChoiceAuthority choiceAuthority(Jobs.Job root,ValidatedRequest request) {
@@ -214,6 +230,9 @@ final class FabricProductionActivities {
             long travel=FabricProductionTravel.recipe(position(nativeActor),source,target,
                     id.equals(WoodenAxeProduction.ID) && facility!=null?facility.reference():null,
                     facility==null?null:facility.reference());
+            if(id.equals(WoodenAxeProduction.ID) && facility!=null && facility.availability()==Availability.PRESENT
+                    && goal.demand()>=4 && clearTableFloor(nativeActor,source,target,facility.reference()))
+                travel=FabricProductionTravel.existingTableOnClearFloor(position(nativeActor),source,target,facility.reference());
             RecipeProfile profile;
             try {
                 profile=world.describeChoice(new CapabilityId(id.name(),2),new Cost(travel,4,100+6*travel));
@@ -243,6 +262,28 @@ final class FabricProductionActivities {
                 goal,destination,job.fulfilled(),ProductionActivityPlanner.budget(job),clock.millis(),revision,
                 stock,acquisition,profiles,facility,List.of(),Set.of(Kind.PRODUCE,Kind.ACQUIRE,Kind.PLACE_TABLE),
                 progress(job),true,false,0);
+    }
+
+    private boolean clearTableFloor(Villager actor,ContainerRef source,ContainerRef target,FacilityRef facility) {
+        var points=List.of(actor.blockPosition(),pos(source),pos(target),new BlockPos(facility.x(),facility.y(),facility.z()));
+        int y=points.getFirst().getY();
+        if(points.stream().anyMatch(p->p.getY()!=y))return false;
+        int minX=points.stream().mapToInt(BlockPos::getX).min().orElseThrow();
+        int maxX=points.stream().mapToInt(BlockPos::getX).max().orElseThrow();
+        int minZ=points.stream().mapToInt(BlockPos::getZ).min().orElseThrow();
+        int maxZ=points.stream().mapToInt(BlockPos::getZ).max().orElseThrow();
+        if((maxX-minX+1L)*(maxZ-minZ+1L)>128)return false;
+        var participants=points.subList(1,4);
+        for(var cell:BlockPos.betweenClosed(minX,y,minZ,maxX,y,maxZ)) {
+            var floor=cell.below();
+            if(!world.loadedForDiscovery(floor) || !world.loadedForDiscovery(cell.above())
+                    || !level.getBlockState(cell.above()).isAir())return false;
+            var ground=level.getBlockState(floor);
+            if(!ground.isCollisionShapeFullBlock(level,floor) || !ground.getFluidState().isEmpty()
+                    || ground.is(Blocks.MAGMA_BLOCK) || ground.is(Blocks.POWDER_SNOW))return false;
+            if(!participants.contains(cell) && !level.getBlockState(cell).isAir())return false;
+        }
+        return true;
     }
 
     private List<Stock> heldSticks(Jobs.Job job,Villager actor) {
