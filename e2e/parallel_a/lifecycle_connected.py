@@ -471,6 +471,8 @@ def main():
                 try:value[key]=observe()
                 except Exception as unavailable:value[key]={'unavailable':str(unavailable)}
             folder=root/'failures'/name;folder.mkdir(parents=True,exist_ok=True);atomic(folder/'result.json',value)
+            if os.environ.get('COGNITIVECRAFT_I00_ADVERSARIAL')=='A07':
+                (folder/'native-boundary.log').write_text(h.server_log()[-32_768:])
             result['failures'].append(name)
         result['cases'].append(value);atomic(root/'a07-results.json',result)
         print('A07_CONNECTED_CASE '+json.dumps({'id':name,'status':value['status'],'reason':value.get('reason')}),flush=True)

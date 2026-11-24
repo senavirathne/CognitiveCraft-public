@@ -67,7 +67,10 @@ public final class PrimitiveDiagnosticRestartGameTests {
             });
         }
         @SuppressWarnings("unchecked") void step() {
-            if(phase==6)return;java.util.concurrent.locks.LockSupport.parkNanos(1_000_000);
+            if(phase==6)return;
+            // Give the warm native inventory and Jobs acknowledgements the same
+            // vanilla cadence as the known Jobs in the cold fixture.
+            java.util.concurrent.locks.LockSupport.parkNanos(phase>=3&&phase<=4?50_000_000:1_000_000);
             if(session!=null&&phase>=3&&phase<=4)session.tick();
             switch(phase) {
                 case 0 -> {

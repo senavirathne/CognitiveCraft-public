@@ -312,6 +312,7 @@ def continue_saved_craft(h):
     h.wait(lambda: not h.action("PlayerA", "snapshot")["play"], "Connected owner observes the original JVM stop", 45)
     stopped = h.root / "cases" / SAVED_CRAFT / "stopped-world"
     shutil.copytree(h.root / "server/game/world", stopped, ignore=shutil.ignore_patterns("session.lock"))
+    atomic(stopped.parent / "cut.json", {"root": root, "before": before, "cut": cut, "cutSave": save, "cold": cold})
     h.start("server")
     warm = read(h.root / "server/process.json")
     reconnect_players(h, ["PlayerA"])
@@ -473,7 +474,7 @@ def contention(h):
     def needs_two():
         frame = h.snapshot()
         job = frame["knownPlayers"]["PlayerB"]["jobs"].get(b)
-        return frame if (h.container(SOURCE, LOG) == 2 and job and job["state"] == "WAITING"
+        return frame if (stock(frame, SOURCE).get(LOG) == 2 and job and job["state"] == "WAITING"
                          and not job["attempts"] and not job["activity"]["steps"]
                          and clean_owners(frame["knownPlayers"]["PlayerA"])) else None
     waiting = h.wait(needs_two, "B cannot manufacture four-log demand from the two remaining logs", 45)
@@ -485,14 +486,17 @@ def contention(h):
                      and s["count"] == 2), None) if menu else None
         return (menu, slot) if menu and menu["menu"] and slot else None
     menu, slot = h.wait(open_supply, "B's client holds the independently recorded two-log addition", 25)
-    verified_clock(h, "tick freeze")
+    frozen = verified_clock(h, "tick freeze")
     transfer_action = h.action("PlayerB", "menu-click", slot=slot["slot"], quick=True)
     transferred = h.wait(lambda: (menu if (menu := h.client_snapshot("PlayerB")) and menu["menu"]
                          and sum(s["count"] for s in menu["slots"] if not s["playerInventory"] and s["item"] == LOG) == 4
                          and not any(s["playerInventory"] and s["item"] == LOG for s in menu["slots"]) else None),
                          "Actual source increases from two to four through a real client transfer", 15)
     h.action("PlayerB", "close-menu")
-    supplied = h.snapshot()
+    supplied = h.wait(lambda: frame if (frame := h.snapshot()) and frame["pid"] == frozen["pid"]
+                      and frame["time"] >= frozen["time"] and stock(frame, SOURCE).get(LOG) == 4
+                      and frame["knownPlayers"]["PlayerB"]["jobs"][b]["state"] == "WAITING" else None,
+                      "Server observes the four physical logs while dispatch remains frozen", 20)
     verified_clock(h, "tick unfreeze")
     h.wait(lambda: (job if (job := original_job(h, b, "PlayerB")) and job["state"] in
            ("SUCCEEDED", "FAILED", "CANCELLED", "INTERRUPTED") else None), "Original B responds to the supply change", 180)
@@ -581,7 +585,13 @@ def run(args, identity):
         atomic(h.root / "cases" / WHOLE_GOAL / "result.json", restock(h, WHOLE_GOAL, 7, 1))
         atomic(h.root / "cases" / NO_METHOD / "result.json", missing_method(h))
         atomic(h.root / "cases" / CONTEND / "result.json", contention(h))
-        atomic(h.root / "cases" / SAVED_CRAFT / "result.json", continue_saved_craft(h))
+        saved_craft_result = h.root / "cases" / SAVED_CRAFT / "result.json"
+        try:
+            atomic(saved_craft_result, continue_saved_craft(h))
+        except Exception as failure:
+            atomic(saved_craft_result, {"id": SAVED_CRAFT, "status": "FAIL", "reason": str(failure),
+                                        "trace": traceback.format_exc(), "lastFrame": h.snapshot()})
+            raise
     finally:
         h.finish()
 
@@ -1116,7 +1126,8 @@ def review(raw, identity):
     for name in (*LIVE, REMOVAL, LOOKALIKE, PARTIAL_CANCEL, RESTOCK, WHOLE_GOAL, NO_METHOD, CONTEND, SAVED_CRAFT):
         row = read(raw / "cases" / name / "result.json")
         if not row or row.get("status") != "PASS_PENDING_INDEPENDENT_REVIEW":
-            cases.append({"id": name, "status": row["status"] if row else "NOT_EXECUTED_REQUIRED"})
+            cases.append({"id": name, "status": row["status"], "reason": row.get("reason")} if row else
+                         {"id": name, "status": "NOT_EXECUTED_REQUIRED"})
         elif name in LIVE:
             cases.append(verify_case(raw, row, name, seed, recipe, events, frames))
         elif name == REMOVAL:

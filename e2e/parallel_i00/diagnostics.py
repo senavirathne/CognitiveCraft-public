@@ -7,6 +7,7 @@ import shutil
 
 
 NATIVE_OWNERS = {"jobs", "leases", "harvest-evidence", "pickup-evidence", "deposit-evidence", "recipe-evidence"}
+SAVED_RECIPE_CUT = Path("integrated-controls/cases/birch-q3-saved-craft-continuation/stopped-world")
 
 
 def collect(root, out):
@@ -15,10 +16,11 @@ def collect(root, out):
         relative=source.relative_to(root)
         native_journal = ("cognitivecraft" in relative.parts and any(part in NATIVE_OWNERS for part in relative.parts)
                           and source.suffix == ".jsonl")
+        saved_recipe_region = relative.is_relative_to(SAVED_RECIPE_CUT) and source.suffix == ".mca"
         if not source.is_file() or source.is_symlink() or ("game" in relative.parts and "logs" not in relative.parts
                                                           and not native_journal):
             continue
-        if source.suffix not in (".json", ".log", ".xml", ".jsonl"):
+        if source.suffix not in (".json", ".log", ".xml", ".jsonl") and not saved_recipe_region:
             continue
         if source.name in ("timeline.jsonl", "observations.jsonl", "resources.jsonl"):
             continue

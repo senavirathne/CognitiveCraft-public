@@ -22,13 +22,15 @@ public final class HarvestSourceState {
     }
 
     /** Block states are immutable. Always read the loaded state before using its canonical text. */
-    public static synchronized String blockStateText(BlockState state) {
+    public static String blockStateText(BlockState state) {
         if(state.isAir())return "minecraft:air";
-        String text=STATE_TEXT.get(state);
-        if(text!=null)return text;
-        text=state.toString();
-        if(STATE_TEXT.size()<64)STATE_TEXT.put(state,text);
-        return text;
+        synchronized(STATE_TEXT) {
+            String text=STATE_TEXT.get(state);
+            if(text!=null)return text;
+            text=state.toString();
+            if(STATE_TEXT.size()<64)STATE_TEXT.put(state,text);
+            return text;
+        }
     }
     private record Position(int x,int y,int z) implements Comparable<Position> {
         @Override public int compareTo(Position b){int c=Integer.compare(x,b.x);if(c==0)c=Integer.compare(y,b.y);return c==0?Integer.compare(z,b.z):c;}

@@ -146,7 +146,16 @@ def run_case(h, case, *, integrated_recipe=False):
         if case.get("dynamic") == "fill-destination":
             h.stock(destination, {"minecraft:cobblestone": 64*26}, case["container"])
             h.console(["give PlayerA " + case["output"] + " 64"])
-            before, client_before = h.snapshot(), h.client_snapshot("PlayerA")
+            address = ",".join(map(str, destination))
+            def settled_fill_fixture():
+                frame, player = h.snapshot(), h.client_snapshot("PlayerA")
+                if (frame and player and player["play"] and frame["containers"].get(address) == {"minecraft:cobblestone": 64*26}
+                        and sum(slot["count"] for slot in player["slots"] if slot["playerInventory"]
+                                and slot["item"] == case["output"]) == 64
+                        and not any(drop["item"] == case["output"] for drop in frame["drops"])):
+                    return frame, player
+            before, client_before = h.wait(settled_fill_fixture,
+                    "Actual donor stack and destination settled after the vanilla give animation", 20)
             row.update(before=before, clientBefore=client_before)
         if case["mode"] == "blueprint":
             request, result = execute_blueprint(h, case)

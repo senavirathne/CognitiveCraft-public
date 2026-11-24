@@ -267,6 +267,13 @@ def main():
         value = {"schema": 1, "stage": "I00", "profile": args.profile,
                  "status": "FAIL_INDEPENDENT_I00_PROFILE_REVIEW", "reason": str(failure),
                  "trace": traceback.format_exc()}
+        try:
+            identity = candidate(args.source, args.jar_sha256)
+            verify_metadata(json.loads((args.root / "metadata.json").read_text()), identity)
+        except (OSError, ValueError):
+            pass
+        else:
+            value.update(identity)
     (args.out / "review.json").write_text(json.dumps(value, indent=2) + "\n")
     print({key: value[key] for key in ("stage", "profile", "status")}, flush=True)
     if value["status"] != "PASS_INDEPENDENT_I00_PROFILE_REVIEW":

@@ -165,12 +165,14 @@ public final class FabricDepositProtocol implements DepositProtocol {
                 if(n>=8)throw new Refused(Reason.REQUEST_INVALID);
                 ancestor=jobs.query(ancestor.parent(),job.origin());root=ancestor.id();
             }
-            int ordinal=1;
-            for(var entry:store.snapshot().entries()) {
-                var key=entry.intent().key();
-                if(key.root().equals(root) && key.attempt().equals(attempt.id()) && key.generation()==attempt.generation())ordinal=Math.max(ordinal,key.ordinal()+1);
+            int ordinal=3;
+            if(lineage==null) {
+                ordinal=1;
+                for(var entry:store.snapshot().entries()) {
+                    var key=entry.intent().key();
+                    if(key.root().equals(root) && key.attempt().equals(attempt.id()) && key.generation()==attempt.generation())ordinal=Math.max(ordinal,key.ordinal()+1);
+                }
             }
-            if(lineage!=null)ordinal=3;
             long deadline=Math.min(job.allowance().deadlineEpochMillis(),attempt.allowance().deadlineEpochMillis());
             if(request.deadline()>deadline)throw new Refused(Reason.REQUEST_INVALID);
             long remaining=attempt.allowance().maximum(Budgets.Kind.COMMITTED_EFFECTS)-request.usage().getOrDefault(Budgets.Kind.COMMITTED_EFFECTS,0L);

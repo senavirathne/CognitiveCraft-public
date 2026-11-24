@@ -255,6 +255,27 @@ class EnduranceHarness(JobHarness):
         require(current == original, "Original unresolved references changed under unrelated compaction")
         return current
 
+    def house_idle_companion(self):
+        # The separate worker remains alive in this same world after both shared
+        # Jobs settle. Keep it out of the later single-worker shipping lane.
+        require(not self.actions_active, "Shared work must settle before the idle fixture changes")
+        entity = self.entities["PlayerB"]
+        self.console(["fill 320 208 75 324 208 79 minecraft:oak_fence",
+                      "fill 321 208 76 323 208 78 minecraft:air",
+                      "tp " + entity + " 322.5 208 77.5"])
+
+        def housed():
+            frame = self.observation()
+            if not frame:
+                return None
+            return next((actor for actor in frame["actors"] if actor["uuid"] == entity
+                         and actor["alive"] and not actor["noAI"] and not actor["controlled"]
+                         and 321 <= actor["pos"][0] < 324 and 76 <= actor["pos"][2] < 79), None)
+
+        worker = self.wait(housed, "Same idle worker observed inside the separate native enclosure")
+        self.event("i00-endurance-idle-companion", {"originalWorker": worker,
+                   "afterSharedActivities": 6, "gameTick": self.observation()["gameTick"]})
+
     def reopen(self, completed, pin):
         before, directory = native_process(self), self.directory_id()
         clients = {p: read(self.root / "clients" / p / "process.json") for p in self.players}
@@ -400,6 +421,8 @@ def run(root, source, jar):
             rows = contend(h, case, next(cases)) if case["role"] == "contention" else [single_case(h, case)]
             completed = rows[-1]["case"]["index"]
             status["observed"] = completed
+            if case["role"] == "contention":
+                h.house_idle_companion()
             if completed in RESTART_AFTER:
                 status["restarts"].append(h.reopen(completed, status["initialPin"]))
             atomic(root / "endurance.json", status)

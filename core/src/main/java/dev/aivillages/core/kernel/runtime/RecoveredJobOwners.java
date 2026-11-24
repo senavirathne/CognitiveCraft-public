@@ -152,7 +152,9 @@ public final class RecoveredJobOwners implements AutoCloseable {
         if (effect == Effect.OBSERVE || effect == Effect.MOVE) return false;
         for (Job job : jobs.snapshot().jobs()) {
             var a = job.current();
-            if (a == null || !a.open() || route(job) != Route.RECOVERY && route(job) != Route.UNRESOLVED) continue;
+            if (a == null || !a.open()) continue;
+            Route owner = route(job);
+            if (owner != Route.RECOVERY && owner != Route.UNRESOLVED) continue;
             if (a.worker().entityId().equals(((ActorValue)incoming.request().arguments().get("actor")).value().entityId())) return true;
             for (Value value : a.bound().request().arguments().values()) {
                 if (value instanceof AreaValue area) {

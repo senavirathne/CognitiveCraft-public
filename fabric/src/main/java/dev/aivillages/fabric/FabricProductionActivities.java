@@ -380,9 +380,11 @@ final class FabricProductionActivities {
         var item=oak>0?ResourceDelivery.OAK_LOG:ResourceDelivery.BIRCH_LOG;
         var staging=((ContainerValue)job.request().request().arguments().get("source")).value();
         long travel=FabricProductionTravel.acquisition(position(actor),staging,targets);
+        // Include the final native deposit acknowledgement even when the harvest
+        // and pickup used most of their shared tick quote.
         return List.of(new Acquisition("original-authorized-logs",area,defaultKey(item),Math.min(64,oak+birch),
                 Availability.PRESENT,true,true,pin(job,capability,ActivityPayload.digest(capability.toString()),1),
-                new Cost(travel,4,120+6*travel)));
+                new Cost(travel,4,144+6*travel)));
     }
 
     private RecipeChoice.ItemKey defaultKey(ResourceDelivery.ItemIdentity item) {
