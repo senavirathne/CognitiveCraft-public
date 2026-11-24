@@ -98,6 +98,15 @@ final class FabricProductionActivities {
                                 choiceAuthority(job,offer.request()),offer.sources())==null);
                 var model=decision.model();
                 if(decision.proposal()==null) {
+                    if(Boolean.getBoolean("cognitivecraft.gametest.trace") && (control.decisions()==0
+                            || control.decisions()==ActivityPayload.ProductionControl.MAX_DECISIONS-1)) {
+                        System.out.println("I00_PLAN_BLOCK root="+job.id()+" blocker="+model.blocker()
+                                +" ticksRemaining="+frame.budget().remaining(Counter.ELAPSED_TICKS)+" facility="+frame.facility()
+                                +" acquisition="+frame.acquisition().stream().map(a->a.availableUnits()+"/"+a.allowance()
+                                        +"/"+(a.method()!=null&&a.method().usable())).toList()
+                                +" methods="+frame.recipes().stream().map(r->r.recipe()+"/"+r.allowance()
+                                        +"/"+(r.method()!=null&&r.method().usable())).toList());
+                    }
                     if(model.nextCheckMillis()==Long.MAX_VALUE && (waitingObservations.containsKey(job.id()) || waitingObservations.size()<32))
                         waitingObservations.put(job.id(),observed);
                     else waitingObservations.remove(job.id());
@@ -192,7 +201,9 @@ final class FabricProductionActivities {
 
     ObservationSnapshot routingObservation(Jobs.Job job,ValidatedRequest invocation,ObservationSnapshot original) {
         var step=job.activity().current();
-        if(validate(job,invocation,step.choice(),step.quantities())!=ActivityRuntime.Validation.VALID)return original;
+        if(validate(job,invocation,step.choice(),step.quantities())!=ActivityRuntime.Validation.VALID)
+            return new ObservationSnapshot(original.reference(),ObservationStatus.UNKNOWN,original.targetIdentity(),
+                    original.observedTick(),original.scannedCells(),original.counts());
         var counts=new HashMap<>(original.counts());
         counts.put("unknown_cells",0L);counts.put("recipe_supported",1L);
         var output=RecipeProduction.of(invocation.request().capability()).output();

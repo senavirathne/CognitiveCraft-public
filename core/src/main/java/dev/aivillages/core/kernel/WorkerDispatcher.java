@@ -123,7 +123,11 @@ public final class WorkerDispatcher {
             public Start continueActivity(Jobs.Job job, ValidatedRequest bound, ArtifactRef ref, UUID id,
                                           Budgets.ExecutionLimits limits, Budgets.Ledger usage) {
                 Reason refused = continuation.bind(job, bound, ref, id);
-                if (refused != null) return new Start(null, refused);
+                if (refused != null) {
+                    if (Boolean.getBoolean("cognitivecraft.gametest.trace"))
+                        System.out.println("DISPATCH_CONTINUATION_BIND job="+job.id()+" run="+id+" reason="+refused);
+                    return new Start(null, refused);
+                }
                 return handle(executor.continueAdmittedActivity(bound, ref, new RunCorrelation(id, ref, null), limits, usage, job));
             }
             private Start handle(BoundedSkillExecutor.Start started) {
@@ -312,6 +316,7 @@ public final class WorkerDispatcher {
             if(!accepts.test(job) || live.containsKey(job.id()) || !dispatchable(job) || !jobs.materialReady(job))continue;
             Decision last=new Decision(job.id(),null,Code.BLOCKED,null,Reason.ACTOR_UNAVAILABLE,List.of(),"UUID circular order");
             CapabilityResolver.Decision chosen=null;ActorRef selected=null;
+            boolean staleExactPreparation=false;
             for(var address:workers.citizens()) {
                 ActorRef actor=address.actor();
                 if(address.availability()!=CitizenRegistry.Availability.LOADED || !workerAccess.controls(actor,job.origin())
@@ -326,6 +331,8 @@ public final class WorkerDispatcher {
                     var bound=new ValidatedRequest(proposed.request(),job.origin(),snapshot.reference());
                     var decision=jobResolver.resolve(job,bound,snapshot);work.resolutions++;
                     last=decision(job,actor,Code.BLOCKED,decision,decision.routing().reason());
+                    if(job.activity()!=null && job.activity().current().exactChoice() && actor.equals(job.responsible())
+                            && decision.routing().reason()==Reason.STALE_OBSERVATION)staleExactPreparation=true;
                     if(decision.routing().status()==ResolutionStatus.RESOLVED) {
                         if(job.activity()!=null && !job.activity().current().artifact().equals(decision.routing().artifact())){last=decision(job,actor,Code.BLOCKED,decision,Reason.STALE_OBSERVATION);continue;}
                         if(job.preparation()!=null && !job.preparation().method().equals(decision.routing().artifact())) {last=decision(job,actor,Code.BLOCKED,decision,Reason.STALE_OBSERVATION);continue;}
@@ -340,6 +347,12 @@ public final class WorkerDispatcher {
             if(chosen==null && cursor.scannedWorkers<workers.total())
                 remember(new Decision(job.id(),last.worker(),Code.DEFERRED,last.routing(),last.reason(),
                         last.alternatives(),"UUID worker page; remaining controlled workers deferred to the next bounded slice"),work);
+            if(chosen==null && staleExactPreparation && job.state()==Jobs.State.READY) {
+                // A prepared recipe no longer matches native stock. Keep its exact plan and
+                // deadline under the original Job, without starting an attempt against stale input.
+                jobs.transition(job.id(),job.guard(),Jobs.State.WAITING,Reason.STALE_OBSERVATION,job.origin());
+                break;
+            }
             // Charge reconsideration through the actual job owner. No retry replenishes this allowance.
             var charged=jobs.charge(job.id(),job.guard(),Map.of(Budgets.Kind.INSTRUCTIONS,1L),job.origin());
             if(!charged.accepted()) { remember(new Decision(job.id(),selected,Code.DEFERRED,last.routing(),charged.reason(),last.alternatives(),last.tieBreak()),work);continue; }
@@ -479,7 +492,7 @@ public final class WorkerDispatcher {
                     remember(decision(job,l.worker,Code.BLOCKED,l.resolution,l.failure),work);
                 }else if(l.handle==null && work.starts<settings.starts()) {
                     // Current worker/control and lease state have just been rechecked after both acknowledgements.
-                    if(!workerCurrent(l,true))stop(l,Reason.STALE_OBSERVATION,false);
+                    if(!workerCurrent(l,true))stop(l,Reason.STALE_OBSERVATION,false,"worker-at-start");
                     else {
                         Start started;
                         try {
@@ -495,7 +508,7 @@ public final class WorkerDispatcher {
                                     :execution.start(l.bound,l.artifact,l.run,limits,l.usage);
                         }
                         catch(RuntimeException failed){started=new Start(null,Reason.ACTION_FAILED);}
-                        if(started.handle()==null)stop(l,started.rejected(),false);
+                        if(started.handle()==null)stop(l,started.rejected(),false,l.continuation?"continuation-start":"execution-start");
                         else { l.handle=started.handle();l.phase=Phase.RUNNING;work.starts++;remember(decision(job,l.worker,Code.STARTED,l.resolution,null),work); }
                     }
                     return;

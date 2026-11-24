@@ -457,7 +457,7 @@ public final class FabricHarvestProtocol implements HarvestProtocol {
         var state=((DepositParticipant)actor).cognitivecraft$depositParticipant();
         var inventory=actor.getInventory();
         if(!state.active() || !state.valid() || !expected.incarnation().equals(state.incarnation())
-                || expected.revision()!=state.revision() || !marker.equals(state.marker())
+                || expected.revision()!=state.revision() || marker==null || !Objects.equals(marker,state.marker())
                 || inventory.getContainerSize()!=expected.slots().size())return false;
         var stacks=track?new ArrayList<ItemStack>():null;
         for(int n=0;n<expected.slots().size();n++) {

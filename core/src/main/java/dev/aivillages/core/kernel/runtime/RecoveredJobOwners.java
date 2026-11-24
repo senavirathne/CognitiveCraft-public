@@ -95,6 +95,12 @@ public final class RecoveredJobOwners implements AutoCloseable {
                 job.revision(), physical, job.activity()==null?null:(activities==null?
                         new dev.aivillages.core.kernel.runtime.activity.ActivityRuntime(jobs,j->dev.aivillages.core.kernel.runtime.activity.ActivityRuntime.Availability.unavailable()):activities).snapshot(job.id(),job.origin()));
     }
+    private void rememberProjection(Job job, StoppedObservation observation) {
+        // Keep the inspected-root count and retain the custody view a later query can use.
+        boolean partial = observation != null && (observation.kind() == StoppedKind.PARTIAL
+                || observation.kind() == StoppedKind.CONTINUABLE);
+        projections.put(job.id(), partial ? projection(job, observation) : null);
+    }
     public void step() {
         check(); inspected = 0;
         if (closed) return;
@@ -111,7 +117,7 @@ public final class RecoveredJobOwners implements AutoCloseable {
                             || !step.journaledProduction()
                                 && !(step.integrated() && LogAcquisition.is(step.invocation().capability())))) {
                         observation=StoppedObservation.ambiguous("Interrupted activity segment requires a separately qualified stop/save adapter");
-                        projections.put(job.id(),projection(job,observation));continue;
+                        rememberProjection(job, observation);continue;
                     }
                     var evidence = authority.capture(StoppedContext.of(job)); observation = evidence.observation();
                     if (continuation != null && observation.kind() == StoppedKind.CONTINUABLE
@@ -119,13 +125,13 @@ public final class RecoveredJobOwners implements AutoCloseable {
                     if (jobs.ready() && (observation.kind() == StoppedKind.NO_EFFECT || observation.kind() == StoppedKind.EFFECT_COMPLETE
                             || observation.kind() == StoppedKind.PARTIAL || observation.kind()==StoppedKind.DELIVERED_UNIT)) {
                         var changed = jobs.reconcileStopped(job.id(), job.guard(), evidence, job.origin());
-                        if (changed.accepted()) { projections.put(job.id(), projection(job, observation)); return; }
+                        if (changed.accepted()) { rememberProjection(job, observation); return; }
                     }
                 } catch (RuntimeException invalidHostEvidence) {
                     observation = StoppedObservation.ambiguous("host evidence unavailable or conflicting");
                 }
             }
-            projections.put(job.id(), projection(job, observation));
+            rememberProjection(job, observation);
         }
     }
     /** Fresh owner/authority projection; cache invalidation cannot expose a stale writer or private row. */

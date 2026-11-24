@@ -322,7 +322,8 @@ def execute_dynamic(h, case):
     if event != "break-facility":
         h.action("PlayerA", "open", pos=target)
         h.wait(lambda: h.client_snapshot("PlayerA")["menu"] > 0, "Connected mutation menu")
-    control = h.arm_recovery({**case, "boundary": "after-withdrawal"}) if event == "break-facility" and hasattr(h, "arm_recovery") else None
+    control = (h.arm_recovery({**case, "boundary": "after-withdrawal"})
+               if event in {"break-facility", "fill-destination"} and hasattr(h, "arm_recovery") else None)
     if not control:
         h.clock("tick rate 2")
     request = h.submit_command(h.command_text(case))

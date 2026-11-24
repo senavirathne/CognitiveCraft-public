@@ -235,19 +235,18 @@ def dormant(h, root):
 
 
 def cancel_partial(h):
-    h.console(["setblock " + coord(CANCEL_DESTINATION) + " minecraft:chest",
-               "tp " + h.entities["PlayerA"] + " 5.5 201 7.5"])
+    h.console(["setblock " + coord(CANCEL_DESTINATION) + " minecraft:chest"])
     fixture_slots(h, SOURCE, {26: (LOG, 1), 0: (OTHER, 2)})
     fixture_slots(h, CANCEL_DESTINATION, {})
     h.wait(lambda: h.container(SOURCE, LOG) == 1 and h.container(CANCEL_DESTINATION, PLANK) == 0,
            "Original one-log partial-cancellation start")
-    before = h.snapshot()
     actor = h.entities["PlayerA"]
-    held = next(a["inventory"].get(PLANK, 0) for a in before["actors"] if a["uuid"] == actor)
     save_world(h, PARTIAL_CANCEL, "starting-world")
     command = production_command(h, CANCEL_DESTINATION)
-    h.actions_active = True
     verified_clock(h, "tick rate 2")
+    before = original_cut_start(h, actor)
+    held = next(a["inventory"].get(PLANK, 0) for a in before["actors"] if a["uuid"] == actor)
+    h.actions_active = True
     root, feedback = submit_root(h, command)
     def crafted():
         frame = h.snapshot()
@@ -255,7 +254,7 @@ def cancel_partial(h):
         receipts = job["attempts"][-1]["resourceReceipts"] if job and job["attempts"] else []
         return frame if (job and job["state"] == "ACTIVE" and [r["stage"] for r in receipts] == ["WITHDRAW", "CRAFT"]
                          and next(a["inventory"].get(PLANK, 0) for a in frame["actors"] if a["uuid"] == actor) == held + 4
-                         and h.container(CANCEL_DESTINATION, PLANK) == 0) else None
+                         and stock(frame, CANCEL_DESTINATION).get(PLANK, 0) == 0) else None
     h.wait(crafted, "Actual original withdrawal/craft prefix before any delivery", 110)
     verified_clock(h, "tick freeze")
     cut = crafted()
@@ -279,18 +278,32 @@ def cancel_partial(h):
             "cancellation": cancellation, "activityView": view, "screenshot": screenshot}
 
 
+def original_cut_start(h, actor):
+    previous = h.snapshot()
+    h.console(["tp " + actor + " 5.5 201 7.5"])
+
+    def positioned():
+        frame = h.snapshot()
+        if frame["time"] <= previous["time"]:
+            return None
+        worker = next(a for a in frame["actors"] if a["uuid"] == actor)
+        x, y, z = worker["pos"]
+        return frame if abs(x - 5.5) < 0.5 and abs(y - 201) < 0.5 and abs(z - 7.5) < 0.5 else None
+
+    return h.wait(positioned, "Original worker at the declared physical cut start", 15)
+
+
 def continue_saved_craft(h):
-    h.console(["setblock " + coord(CANCEL_DESTINATION) + " minecraft:chest",
-               "tp " + h.entities["PlayerA"] + " 5.5 201 7.5"])
+    h.console(["setblock " + coord(CANCEL_DESTINATION) + " minecraft:chest"])
     fixture_slots(h, SOURCE, {26: (LOG, 1), 0: (OTHER, 2)})
     fixture_slots(h, CANCEL_DESTINATION, {})
     h.wait(lambda: h.container(SOURCE, LOG) == 1 and h.container(CANCEL_DESTINATION, PLANK) == 0,
            "Original one-log saved continuation fixture")
     save_world(h, SAVED_CRAFT, "starting-world")
-    before = h.snapshot()
     command = production_command(h, CANCEL_DESTINATION)
-    h.actions_active = True
     verified_clock(h, "tick rate 2")
+    before = original_cut_start(h, h.entities["PlayerA"])
+    h.actions_active = True
     root, feedback = submit_root(h, command)
 
     def crafted():

@@ -436,7 +436,7 @@ public final class FabricPickupProtocol implements PickupProtocol {
     }
     @Override public void releaseRestoredPickup(UUID run) { check(); restoredPickups.remove(run); }
 
-    DepositLineage prepareDeposit(DepositProtocol.Request request,BooleanSupplier preflight) {
+    DepositLineage prepareDeposit(DepositProtocol.Request request,BooleanSupplier preflight,long[] phases) {
         check();if(closed || !enabled || store.fenced() || store.pending() || !descendant.isEmpty())return null;
         NativePickup.Entry p=null;
         for(var entry:store.snapshot().entries()) {
@@ -448,25 +448,30 @@ public final class FabricPickupProtocol implements PickupProtocol {
         String token=p.token();
         var saved = restoredPickups.get(request.correlation().runId());
         if (saved != null) {
-            if (!saved.entry().equals(p) || !store.ownsSavedPickup(saved) || !request.receiptPrefix().equals(prefixReceipts(p))) return null;
+            if (!Objects.equals(saved.entry(),p) || !store.ownsSavedPickup(saved) || !request.receiptPrefix().equals(prefixReceipts(p))) return null;
+            phases[0]=System.nanoTime();
             var trail = p.verification().observation().actorTrail().trail();
             var actor = actor(request.actor());
             var source = harvest.sourceWitness(p.result().source());
-            if (actor == null || !present(actor.getUUID(), trail.current()) || source == null || !source.source().equals(p.result().source())
+            if (actor == null || !present(actor.getUUID(), trail.current()) || source == null || !Objects.equals(source.source(),p.result().source())
                     || !FabricHarvestProtocol.matchesResultMarker(source.marker(), token, p.intent().digest(), p.result().digest())
                     || level.getEntity(p.intent().dropTrail().entity()) != null
-                    || !harvest.actorMatches(actor, p.result().actor(), source.marker(), true) || !preflight.getAsBoolean()) return null;
+                    || !harvest.actorMatches(actor, p.result().actor(), source.marker(), true)) return null;
+            phases[1]=System.nanoTime();
+            if(!preflight.getAsBoolean())return null;
             return new DepositLineage(this, saved, new NativeJoinedDeposit.Prefix(p, trail));
         }
         var committed=live.get(token);var acknowledged=store.acknowledged(p.intent().key());
-        if(committed==null || !committed.intent().equals(p.intent()) || !committed.result().equals(p.result())
+        if(committed==null || !Objects.equals(committed.intent(),p.intent()) || !Objects.equals(committed.result(),p.result())
                 || acknowledged==null || !p.intent().harvest().intent().actor().equals(request.actor())
                 || !request.receiptPrefix().equals(List.of(p.intent().harvest().result().receipt(),p.result().receipt())))return null;
+        phases[0]=System.nanoTime();
         var entity=level.getEntity(request.actor().entityId());var source=harvest.sourceWitness(p.result().source());
-        if(!(entity instanceof Villager actor) || source==null || !source.source().equals(p.result().source())
-                || !committed.marker().equals(source.marker())
+        if(!(entity instanceof Villager actor) || source==null || !Objects.equals(source.source(),p.result().source())
+                || !Objects.equals(committed.marker(),source.marker())
                 || level.getEntity(p.intent().dropTrail().entity())!=null
                 || !harvest.actorMatches(actor,p.result().actor(),source.marker(),true))return null;
+        phases[1]=System.nanoTime();
         descendant=token;
         try {
             var link=committed.lineage();

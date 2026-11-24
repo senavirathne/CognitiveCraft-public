@@ -51,7 +51,8 @@ public final class FabricDepositProtocol implements DepositProtocol {
     public void pickupProtocol(FabricPickupProtocol protocol){check();if(pickups!=null)throw new IllegalStateException("Joined pickup already attached");pickups=Objects.requireNonNull(protocol);}
     private final CaptureThreadTime captureThreadTime=new CaptureThreadTime();
     private final ArrayDeque<Long> beginNanos=new ArrayDeque<>(),pollNanos=new ArrayDeque<>();
-    public static final List<String> PREPARATION_PHASES=List.of("authority","owner","participants","claims","conditions","intent","exclusion");
+    public static final List<String> PREPARATION_PHASES=List.of("original-pickup","native-lineage","gateway-preflight",
+            "owner","participants","claims","conditions","intent","exclusion");
     private final ArrayDeque<PreparationProfile> preparations=new ArrayDeque<>();
     public record PreparationProfile(List<Long> completedAtNanos,long bodyNanos) {public PreparationProfile{completedAtNanos=List.copyOf(completedAtNanos);}}
     public record Metrics(List<Long> beginNanos,List<Long> pollNanos,List<Long> acknowledgementNanos,List<PreparationProfile> preparations,long participantInitializationNanos,List<Long> captureCpuNanos,List<String> capturePhaseNames) { }
@@ -113,9 +114,9 @@ public final class FabricDepositProtocol implements DepositProtocol {
         return begin(request,original,original::current);
     }
     @Override public Ticket begin(Request request,Action original,BooleanSupplier preflight) {
-        check();long cpuStarted=captureThreadTime.start();long began=System.nanoTime();long[] phases=new long[7];
+        check();long cpuStarted=captureThreadTime.start();long began=System.nanoTime();long[] phases=new long[PREPARATION_PHASES.size()];
         try{return beginNative(request,original,preflight,phases);}finally{
-            long finished=System.nanoTime();var elapsed=new ArrayList<Long>(7);
+            long finished=System.nanoTime();var elapsed=new ArrayList<Long>(phases.length);
             for(long value:phases)elapsed.add(value==0?0:value-began);
             if(preparations.size()==128)preparations.removeFirst();preparations.addLast(new PreparationProfile(elapsed,finished-began));
             measured(beginNanos,began);
@@ -129,18 +130,19 @@ public final class FabricDepositProtocol implements DepositProtocol {
             if(closed || !enabled)throw new Refused(Reason.UNSUPPORTED_PRIMITIVE);
             if(store.fenced())throw new Refused(Reason.STORAGE_UNAVAILABLE);
             if(tickets.size()>=MAX_TICKETS)throw new Refused(Reason.STORAGE_LIMIT_REACHED);
-            var lineage=pickups==null?null:pickups.prepareDeposit(request,preflight);
+            if(pickups==null)phases[0]=phases[1]=System.nanoTime();
+            var lineage=pickups==null?null:pickups.prepareDeposit(request,preflight,phases);
             boolean permitted=pickups==null?preflight.getAsBoolean():lineage!=null;
             if(!permitted)throw new Refused(Reason.INTERRUPTED);
-            phases[0]=System.nanoTime();
+            phases[2]=System.nanoTime();
             var job=new JobLeaseOwners(jobs,clock).execution(request.bound(),request.correlation());
             var owner=new ResourceLeases.Owner(job.id(),job.generation());var attempt=job.current();
             if(!jobs.ready() || !leases.ready() || attempt==null || !attempt.open() || jobs.stopPending(job.id(),job.generation(),job.origin()))throw new Refused(Reason.INTERRUPTED);
-            phases[1]=System.nanoTime();
+            phases[3]=System.nanoTime();
             Participant capturedActor=lineage==null?null:lineage.prefix().pickup().result().actor();
             Pair pair=pair(request.actor(),request.destination(),capturedActor,lineage!=null && job.activity()!=null);
             if(pair==null)throw new Refused(Reason.TARGET_UNAVAILABLE);
-            phases[2]=System.nanoTime();
+            phases[4]=System.nanoTime();
             var claims=new ArrayList<ResourceLeases.Lease>(4);
             for(var claim:leases.snapshot().leases())if(claim.owner().equals(owner) && claim.origin().equals(job.origin())
                     && claim.state()==ResourceLeases.State.ACTIVE && claim.expires()>level.getGameTime()) {
@@ -159,7 +161,7 @@ public final class FabricDepositProtocol implements DepositProtocol {
             int source=sourceSlot(pair.actorSnapshot,request.item().id()),target=targetSlot(pair,source,request.item().id());
             if(source<0)throw new Refused(Reason.RESOURCE_MISSING);
             if(target<0)throw new Refused(Reason.TARGET_UNAVAILABLE);
-            phases[3]=System.nanoTime();
+            phases[5]=System.nanoTime();
             UUID root=job.id();var ancestor=job;
             for(int n=0;ancestor.parent()!=null;n++) {
                 if(n>=8)throw new Refused(Reason.REQUEST_INVALID);
@@ -180,14 +182,14 @@ public final class FabricDepositProtocol implements DepositProtocol {
             int reach=(int)Math.ceil(Math.sqrt(pair.actor.distanceToSqr(Vec3.atCenterOf(pair.chest.getBlockPos())))*1000);
             var conditions=new Conditions(request.actor().citizenId(),job.revision(),deadline,request.deadline(),request.effectsRemaining(),
                     level.getGameTime(),2500,reach,references,request.usage());
-            phases[4]=System.nanoTime();
+            phases[6]=System.nanoTime();
             var intent=new Intent(new Key(job.origin().scope().worldId(),root,job.id(),attempt.id(),attempt.generation(),ordinal),job.origin(),request.correlation().runId(),request.operation(),
                     pair.actorSnapshot,pair.chestSnapshot,request.item().id(),source,target,capacity(pair,source,target),conditions,
                     retainReceiptPrefix || lineage!=null?new ResourceReceiptPrefix(request.receiptPrefix()):null,lineage==null?null:lineage.prefix());
-            phases[5]=System.nanoTime();
+            phases[7]=System.nanoTime();
             ticket=new NativeTicket(request,original,intent,null,lineage,job);
             if(store.conflicts(Kind.ACTOR,intent.actor().dimension(),intent.actor().address(),"") || store.conflicts(Kind.CHEST,intent.chest().dimension(),intent.chest().address(),""))throw new Refused(Reason.INTERRUPTED);
-            phases[6]=System.nanoTime();
+            phases[8]=System.nanoTime();
         }catch(Refused refused){return new NativeTicket(request,original,null,refused.reason);}
         catch(RuntimeException unsupported){return new NativeTicket(request,original,null,Reason.TARGET_INVALID);}
         tickets.add(ticket);return ticket;

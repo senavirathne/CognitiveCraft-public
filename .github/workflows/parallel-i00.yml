@@ -633,6 +633,40 @@ jobs:
           if-no-files-found: warn
           path: ${{ steps.prepare.outputs.root }}/review.json
 
+      - name: Preserve the first half of the native endurance replay inputs
+        if: ${{ always() && matrix.track == 'endurance' && steps.prepare.outputs.root != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: i00-endurance-replay-first-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 30
+          path: |
+            ${{ steps.prepare.outputs.root }}/activities/0[0-4]*/
+            ${{ steps.prepare.outputs.root }}/configuration-manifest.json
+            ${{ steps.prepare.outputs.root }}/endurance.json
+            ${{ steps.prepare.outputs.root }}/frozen-endurance-workload.json
+            ${{ steps.prepare.outputs.root }}/independent-admissions.json
+            ${{ steps.prepare.outputs.root }}/job-rpc/
+            ${{ steps.prepare.outputs.root }}/metadata.json
+            ${{ steps.prepare.outputs.root }}/pinned-original/
+            ${{ steps.prepare.outputs.root }}/review.json
+            ${{ steps.prepare.outputs.root }}/server/game/world/
+            ${{ steps.prepare.outputs.root }}/server/i00-endurance-ticks-*
+            ${{ steps.prepare.outputs.root }}/supervisor.jsonl
+
+      - name: Preserve the remaining native endurance replay inputs
+        if: ${{ always() && matrix.track == 'endurance' && steps.prepare.outputs.root != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: i00-endurance-replay-last-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            ${{ steps.prepare.outputs.root }}/activities/0[5-9]*/
+            ${{ steps.prepare.outputs.root }}/activities/1000/
+            ${{ steps.prepare.outputs.root }}/metadata.json
+
       - name: Preserve compact failure diagnostics alongside the complete raw archive
         if: ${{ always() && steps.prepare.outputs.root != '' }}
         run: python3 -m e2e.parallel_i00.diagnostics --root "${{ steps.prepare.outputs.root }}" --out "build/i00-diagnostics/coverage-${{ matrix.track }}"

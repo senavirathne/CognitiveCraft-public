@@ -461,13 +461,13 @@ def review_case(case, row, root, pins, recipes, validate):
                 "Physical held table, exact slots and placed block did not reconcile")
         events = "clients/PlayerA/events.jsonl"
         require_command(raw_slices(root, row, {events})[events], row["request"]["command"], row["request"]["feedback"], "PlayerA")
-    if case.get("dynamic") == "break-facility":
+    if case.get("dynamic") in {"break-facility", "fill-destination"}:
         req = row["request"]
         mark = row["execution"]["dynamic"]["nativeClock"]
         key = "submission" if req["kind"] == "run" else "root"
         require(mark == read(root / "server/i00-native-boundary-reached.json") and mark[key] == req["identity"]
                 and mark["principal"] == row["bindings"]["player"] and mark["boundary"] == "after-withdrawal"
-                and mark["rate"] == 20 and mark["frozen"], "Facility break missed the original withdrawal at normal speed")
+                and mark["rate"] == 20 and mark["frozen"], "Connected mutation missed the original withdrawal at normal speed")
     if case.get("dynamic") == "competing-actors":
         execution = row["execution"]
         competition = execution["competition"]

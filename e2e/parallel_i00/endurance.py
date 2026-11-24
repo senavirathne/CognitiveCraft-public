@@ -370,15 +370,28 @@ def contend(h, first, second):
     h.actions_active = False
     h.walk("PlayerB", list(SHARED), reach=2.5)
     a = start_case(h, first)
-    h.await_job(a[1], lambda _, job: job["state"] == "ACTIVE" and job["attempts"],
-                "First original owner reserved the scarce stock")
-    b = start_case(h, second)
-    def overlap():
-        frame = h.observation()
-        jobs = [h.observed_job(row[1], frame) for row in (a, b)]
-        return jobs if all(job and job["state"] not in TERMINAL for job in jobs) else None
-    owners = h.wait(overlap, "Actual overlapping activity owners under one physical stock constraint", 30)
-    _, evidence = h.capture(a[0], "contended-owner")
+
+    def reserved(frame, job):
+        return job and job["state"] == "ACTIVE" and job["attempts"] and any(
+            lease["owner"] == {"job": job["id"], "generation": job["generation"]}
+            and lease["resource"]["item"] == "cognitivecraft:recipe_source" and lease["state"] == "ACTIVE"
+            for lease in frame["knownPlayers"][first["player"]]["leases"])
+
+    h.await_job(a[1], reserved, "First original owner reserved the scarce stock")
+    with h.pause_before_dispatch() as paused_tick:
+        # Let the original Jobs writer acknowledge B's intake while A still holds its native claim.
+        h.stable()
+        b = start_case(h, second)
+
+        def overlapping(frame):
+            owners = [h.observed_job(row[1], frame) for row in (a, b)]
+            return (owners if frame["gameTick"] == paused_tick and reserved(frame, owners[0])
+                    and owners[1] and owners[1]["state"] not in TERMINAL else None)
+
+        h.wait(lambda: overlapping(h.observation()), "Actual overlapping activity owners under one physical stock constraint", 30)
+        frame, evidence = h.capture(a[0], "contended-owner")
+        owners = overlapping(frame)
+        require(owners, "The captured native overlap must include both original owners and the first stock claim")
     result = finish_case(h, first, a, {"overlap": evidence, "owners": owners})
     _, waiting = h.await_job(b[1], lambda frame, job: job["state"] == "WAITING" and
                              frame["containers"][key(SHARED)].get(LOG, 0) == 0, "Second eligible owner waits on empty stock")

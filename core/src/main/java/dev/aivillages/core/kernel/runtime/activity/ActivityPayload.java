@@ -89,6 +89,16 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
     }
     /** Opaque canonical bytes are data only. Reload epoch is never semantic identity. */
     public record Choice(String base64, String sha256, boolean exactRecipe) {
+        // Reuse strictly decoded immutable bytes across validation of the same choice.
+        // Current actor, world, custody and authority checks still run at their original boundaries.
+        private static final int DECODED_CHOICES = 128;
+        private static final ThreadLocal<Map<Choice, RecipeChoice>> DECODED = ThreadLocal.withInitial(
+                () -> new LinkedHashMap<>(DECODED_CHOICES, 0.75f, true) {
+                    @Override protected boolean removeEldestEntry(Map.Entry<Choice, RecipeChoice> first) {
+                        return size() > DECODED_CHOICES;
+                    }
+                });
+
         public Choice(String base64,String sha256){this(base64,sha256,false);}
         public Choice {
             Objects.requireNonNull(base64);Objects.requireNonNull(sha256);
@@ -104,7 +114,8 @@ public record ActivityPayload(GoalMode mode, Policy policy, int plannedSteps, UU
         }
         public RecipeChoice recipe() {
             if(!exactRecipe)throw new IllegalArgumentException("Opaque activity choice has no exact recipe authority");
-            return RecipeChoice.fromCanonical(ActivityEncoding.utf8(Base64.getDecoder().decode(base64)));
+            return DECODED.get().computeIfAbsent(this, choice ->
+                    RecipeChoice.fromCanonical(ActivityEncoding.utf8(Base64.getDecoder().decode(choice.base64()))));
         }
         @Override public String toString(){return "Choice[base64="+base64+", sha256="+sha256+"]";}
     }
