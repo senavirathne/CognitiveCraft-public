@@ -15,6 +15,43 @@ import net.minecraft.world.level.gamerules.GameRules;
 /** Real BlockItem use, actual held stack, mutation guards and current facility observation. */
 /** Task 1.2: native gravity, retained admitted-recipe custody and exact one-batch production. */
 public final class RecipeLandingGameTests {
+    @GameTest(maxTicks=100,padding=16)
+    public void eachRecipeApproachRequiresItsOwnNativeSettling(GameTestHelper h) {
+        for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);
+        h.setBlock(2,1,2,Blocks.CHEST);
+        var v=h.spawnWithNoFreeWill(EntityTypes.VILLAGER,3,1,3);v.setNoAi(false);
+        var pos=h.absolutePos(new BlockPos(2,1,2));BootstrapGameTests.forceFixtureChunks(h,pos);
+        String dimension=h.getLevel().dimension().identifier().toString();
+        var target=new SurvivalGateway.Cell(dimension,pos.getX(),pos.getY(),pos.getZ());
+        var actor=new ActorRef(UUID.randomUUID(),v.getUUID(),dimension);
+        var run=UUID.randomUUID();var world=new FabricGatewayWorld(h.getLevel());
+        long[] firstArrival={-1},secondStart={-1};
+        boolean[] acquired={false},staleArrival={false};
+        h.succeedWhen(()->{
+            if(!acquired[0]){
+                h.assertTrue(v.onGround(),"Waiting for native support");
+                h.assertTrue(world.acquire(actor,run),"Original worker control");
+                acquired[0]=true;
+            }
+            long tick=h.getLevel().getGameTime();
+            if(firstArrival[0]<0){
+                h.assertTrue(world.moveRecipe(actor,target,1).reached(),"Waiting for first settled approach");
+                firstArrival[0]=tick;
+                world.stopMovement(actor);
+            }
+            h.assertTrue(tick>=firstArrival[0]+3,"Waiting for the next recipe primitive");
+            var next=world.moveRecipe(actor,target,1);
+            if(secondStart[0]<0){
+                secondStart[0]=tick;
+                staleArrival[0]=next.reached();
+            }
+            h.assertTrue(!staleArrival[0],"A new native approach reused the stop time of the previous primitive");
+            h.assertTrue(next.reached() && tick>=secondStart[0]+2,"Waiting for fresh native settling");
+            h.assertTrue(world.recipeReach(v,pos),"Original container remains in real reach");
+            world.release(actor,run);
+        });
+    }
+
     @GameTest(maxTicks=1000,padding=16)
     public void fallingAfterWithdrawalWaitsForNativeLandingAndCraftsOneBatch(GameTestHelper h){
         for(int x=0;x<8;x++)for(int z=0;z<8;z++)h.setBlock(x,0,z,Blocks.STONE);

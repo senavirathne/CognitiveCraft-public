@@ -96,6 +96,23 @@ class FabricProductionTravelTest {
         assertEquals(31,FabricProductionTravel.existingTableOnClearFloor(start,source,destination,table));
         assertTrue(4*FabricProductionTravel.existingTableOnClearFloor(start,source,destination,table)<=128);
     }
+    @Test void originalGatheringRouteAtTheDiagonalSiteFitsTheElapsedAllowanceOnClearFloor() {
+        var start=at(70,208,68);
+        var source=at(70,208,69);
+        var destination=at(77,208,71);
+        var site=new FacilityRef(source.dimension(),71,208,68);
+        var logs=List.of(at(68,208,67),at(69,208,67),at(70,208,66));
+        long acquisition=FabricProductionTravel.acquisition(start,source,logs);
+        long inPlace=FabricProductionTravel.recipe(start,source,source,null,site);
+        long placement=FabricProductionTravel.placement(start,source,site);
+        long priorTicks=3*(144+6*acquisition)+5*(100+6*inPlace)+100+6*placement;
+        long unchanged=OakPlankProduction.executionLimits(1000).total().maximum(Budgets.Kind.ELAPSED_TICKS);
+        assertEquals(1800,unchanged);
+        long oldQuote=FabricProductionTravel.recipe(start,source,destination,site,site);
+        assertEquals(1810,priorTicks+100+6*oldQuote);
+        long observedFloorQuote=FabricProductionTravel.existingTableOnClearFloor(start,source,destination,site);
+        assertTrue(priorTicks+100+6*observedFloorQuote<=unchanged);
+    }
     @Test void largeBirchGoalQuotesFourNativeGroupsWithoutChangingTheOriginalCounter() {
         var start=at(80,208,67);var source=at(68,208,72);var destination=at(76,208,70);
         var actor=new ActorRef(UUID.randomUUID(),UUID.randomUUID(),source.dimension());

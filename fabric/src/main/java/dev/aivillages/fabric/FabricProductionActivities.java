@@ -246,9 +246,15 @@ final class FabricProductionActivities {
                     :FabricProductionTravel.recipe(start,source,target,
                     id.equals(WoodenAxeProduction.ID) && facility!=null?facility.reference():null,
                     facility==null?null:facility.reference());
-            if(id.equals(WoodenAxeProduction.ID) && facility!=null && facility.availability()==Availability.PRESENT
-                    && !separateSticks && goal.demand()>=4 && clearTableFloor(nativeActor,actor,source,target,facility.reference()))
-                travel=FabricProductionTravel.existingTableOnClearFloor(start,source,target,facility.reference());
+            if(id.equals(WoodenAxeProduction.ID) && facility!=null && !separateSticks) {
+                boolean present=facility.availability()==Availability.PRESENT;
+                // A gathering plan reaches this segment after its approved table is placed.
+                // Reuse the reach quote only on the witnessed clear floor.
+                boolean clearFloorQuote=present && goal.demand()>=4
+                        || allowedArea!=null && (present || facility.approvedSiteFree());
+                if(clearFloorQuote && clearTableFloor(nativeActor,actor,source,target,facility.reference()))
+                    travel=FabricProductionTravel.existingTableOnClearFloor(start,source,target,facility.reference());
+            }
             if(id.equals(WoodenAxeProduction.ID) && facility!=null && separateSticks)
                 travel=Math.addExact(travel,FabricProductionTravel.separateStickLeg(source,authorizedSources.getLast(),facility.reference()));
             RecipeProfile profile;

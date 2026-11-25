@@ -461,7 +461,7 @@ def review_case(case, row, root, pins, recipes, validate):
                 "Physical held table, exact slots and placed block did not reconcile")
         events = "clients/PlayerA/events.jsonl"
         require_command(raw_slices(root, row, {events})[events], row["request"]["command"], row["request"]["feedback"], "PlayerA")
-    if case.get("dynamic") in {"break-facility", "fill-destination"}:
+    if case.get("dynamic") in {"break-facility", "fill-destination", "remove-input"}:
         req = row["request"]
         mark = row["execution"]["dynamic"]["nativeClock"]
         key = "submission" if req["kind"] == "run" else "root"

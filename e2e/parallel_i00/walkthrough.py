@@ -205,14 +205,15 @@ def prepare(h, shortage):
                "tp PlayerB 80.5 208 73.5", "deop PlayerA", "deop PlayerB"])
     h.action("PlayerA", "look", pos=DESTINATION)
     _, client = fixture_observation(h, expected_tables=set(), expected_blocks=expected)
-    before, initial = fixed_start(h, keep_frozen=True)
+    before, initial = fixed_start(h)
     require(h.players["PlayerA"] != h.players["PlayerB"] and before["knownPlayers"]["PlayerB"]["online"],
             "Distinct connected principal required for private activity view")
     return before, client, initial
 
 
-def fixed_start(h, *, keep_frozen=False):
-    # Bind the first frame and the initial native save to the declared starting pose.
+def fixed_start(h):
+    # The initial saved fixture and first frame use the same native starting pose.
+    # Release the vanilla clock before any measured player request.
     h.clock("tick freeze")
     old_frame = h.snapshot()
     h.console(["tp " + h.entities["PlayerA"] + " " + coord(ACTOR_START)])
@@ -227,8 +228,7 @@ def fixed_start(h, *, keep_frozen=False):
 
     before = h.wait(posed, "Fresh native observation at the declared pre-request actor pose", 20)
     initial = h.save_checkpoint()
-    if not keep_frozen:
-        h.clock("tick unfreeze")
+    h.clock("tick unfreeze")
     return before, initial
 
 
@@ -420,15 +420,10 @@ def run_case(root, case, seed, cohort):
         row.update(before=before, clientBefore=client, actor=h.entities["PlayerA"], citizen=h.citizens["PlayerA"],
                    principal=h.players["PlayerA"], foreignPrincipal=h.players["PlayerB"], knownPins=h.artifacts,
                    modelCallsBefore=process_model_calls(before), initialCheckpoint=initial)
-        try:
-            # Admission can wait on real interpretation. Begin physical work from the declared pose.
-            row["request"] = request(h)
-            root_id = row["request"]["root"]
-            require(root_id, "The ordinary player goal did not resolve to an activity owner")
-            row["firstJob"] = h.wait(lambda: h.job_view("PlayerA", root_id), "Published original activity Job", 60)
-            require(h.snapshot()["gameTick"] == before["gameTick"], "Native walkthrough start advanced before original intake")
-        finally:
-            h.clock("tick unfreeze")
+        row["request"] = request(h)
+        root_id = row["request"]["root"]
+        require(root_id, "The ordinary player goal did not resolve to an activity owner")
+        row["firstJob"] = h.wait(lambda: h.job_view("PlayerA", root_id), "Published original activity Job", 60)
         atomic(root / "result.json", row)
         if cut:
             stop_at_cut(h, cut, row, root_id, cohort)

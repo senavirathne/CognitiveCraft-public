@@ -19,6 +19,7 @@ public final class JobJournal implements AutoCloseable {
     public static final int MAX_BYTES = 2_097_152;
     public static final int MAX_RECORDS = 192;
     public static final String WORLD_RELATIVE_PATH = "data/cognitivecraft/jobs/v1";
+    private static final ThreadLocal<Map<Job,byte[]>> ENCODED_JOBS = ThreadLocal.withInitial(IdentityHashMap::new);
     public enum Point { BEFORE_STAGE, AFTER_STAGE, AFTER_BACKUP, BEFORE_REPLACE, AFTER_REPLACE }
     @FunctionalInterface public interface FaultInjector {
         void at(Point point) throws IOException;
@@ -111,27 +112,39 @@ public final class JobJournal implements AutoCloseable {
         replace(state,new Snapshot(state.worldId(),Math.addExact(state.revision(),1),state.jobs(),state.allocations()));
     }
     public static byte[] encode(Snapshot snapshot) throws IOException {
-        var lines = new ArrayList<String>();
-        for (Job job : snapshot.jobs()) lines.add(JobCodec.job(job));
-        for (Allocation allocation : snapshot.allocations()) lines.add(JobCodec.allocation(allocation));
-        for (String line : lines) try { StrictJson.object(line); }
-        catch (StrictJson.Invalid limit) { throw new IOException("Job record byte/token quota",limit); }
-        if (lines.size() > MAX_RECORDS) throw new IOException("Job snapshot byte/record quota");
-        var encoded = new ArrayList<byte[]>(); MessageDigest checksum = checksum(); int payloadBytes = 0;
-        for (String line : lines) {
-            byte[] record = line.getBytes(StandardCharsets.UTF_8); encoded.add(record);
+        int records = Math.addExact(snapshot.jobs().size(),snapshot.allocations().size());
+        if (records > MAX_RECORDS) throw new IOException("Job snapshot byte/record quota");
+        // Adjacent snapshots share immutable Jobs. Reuse only exact prior objects on this thread.
+        var prior = ENCODED_JOBS.get();
+        var next = new IdentityHashMap<Job,byte[]>(snapshot.jobs().size());
+        var encoded = new ArrayList<byte[]>(records);
+        for (Job job : snapshot.jobs()) {
+            byte[] record = prior.get(job);
+            if (record == null) record = recordBytes(JobCodec.job(job));
+            next.put(job,record);
+            encoded.add(record);
+        }
+        for (Allocation allocation : snapshot.allocations()) encoded.add(recordBytes(JobCodec.allocation(allocation)));
+        MessageDigest checksum = checksum(); int payloadBytes = 0;
+        for (byte[] record : encoded) {
             payloadBytes = Math.addExact(payloadBytes, record.length + 1);
             if (payloadBytes > MAX_BYTES) throw new IOException("Job snapshot byte/record quota");
             checksum.update(record); checksum.update((byte)'\n');
         }
         String header = StrictJson.canonical(Map.of("schema",snapshot.jobs().stream().anyMatch(j->j.activity()!=null) ? 4L : snapshot.jobs().stream().anyMatch(j->j.preparation()!=null) || snapshot.allocations().stream().anyMatch(Allocation::material) ? 3L : snapshot.jobs().stream().anyMatch(JobCodec::resourceForm) ? 2L : 1L,"world",snapshot.worldId().toString(),
-                "revision",snapshot.revision(),"records",(long)lines.size(),"sha256",HexFormat.of().formatHex(checksum.digest())));
+                "revision",snapshot.revision(),"records",(long)records,"sha256",HexFormat.of().formatHex(checksum.digest())));
         byte[] first = header.getBytes(StandardCharsets.UTF_8);
         if ((long)first.length + 1 + payloadBytes > MAX_BYTES) throw new IOException("Job snapshot byte/record quota");
         byte[] bytes = new byte[first.length + 1 + payloadBytes];
         System.arraycopy(first,0,bytes,0,first.length); int offset = first.length; bytes[offset++] = '\n';
         for (byte[] record : encoded) { System.arraycopy(record,0,bytes,offset,record.length); offset += record.length; bytes[offset++] = '\n'; }
+        ENCODED_JOBS.set(next);
         return bytes;
+    }
+    private static byte[] recordBytes(String line) throws IOException {
+        try { StrictJson.object(line); }
+        catch (StrictJson.Invalid limit) { throw new IOException("Job record byte/token quota",limit); }
+        return line.getBytes(StandardCharsets.UTF_8);
     }
     /** Documented schema-0 import fixture, with the exact same schema-1 semantic records. */
     public static byte[] encodeImport(Snapshot snapshot) throws IOException {

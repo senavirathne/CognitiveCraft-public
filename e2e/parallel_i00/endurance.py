@@ -257,20 +257,25 @@ class EnduranceHarness(JobHarness):
 
     def house_idle_companion(self):
         # The separate worker remains alive in this same world after both shared
-        # Jobs settle. Keep it out of the later single-worker shipping lane.
+        # Jobs settle. Solid walls keep ordinary AI from crossing the pen edge.
         require(not self.actions_active, "Shared work must settle before the idle fixture changes")
         entity = self.entities["PlayerB"]
-        self.console(["fill 320 208 75 324 208 79 minecraft:oak_fence",
-                      "fill 321 208 76 323 208 78 minecraft:air",
-                      "tp " + entity + " 322.5 208 77.5"])
+        self.console(["fill 320 208 75 324 210 78 minecraft:stone",
+                      "fill 321 208 76 323 209 77 minecraft:air",
+                      "tp " + entity + " 322.5 208 76.5"])
+        wall = [key((x, 208, z)) for x in range(320, 325) for z in range(75, 79)
+                if x in (320, 324) or z in (75, 78)]
 
         def housed():
             frame = self.observation()
-            if not frame:
+            if not frame or any("minecraft:stone" not in frame["blocks"].get(cell, "") for cell in wall):
                 return None
+            measured = next((actor for actor in frame["actors"] if actor["uuid"] == self.entities["PlayerA"]), None)
+            require(measured and not (320 <= measured["pos"][0] < 325 and 75 <= measured["pos"][2] < 79),
+                    "The measured native worker must be outside the inactive companion's enclosure")
             return next((actor for actor in frame["actors"] if actor["uuid"] == entity
                          and actor["alive"] and not actor["noAI"] and not actor["controlled"]
-                         and 321 <= actor["pos"][0] < 324 and 76 <= actor["pos"][2] < 79), None)
+                         and 321 <= actor["pos"][0] < 324 and 76 <= actor["pos"][2] < 78), None)
 
         worker = self.wait(housed, "Same idle worker observed inside the separate native enclosure")
         self.event("i00-endurance-idle-companion", {"originalWorker": worker,
@@ -319,6 +324,8 @@ def finish_case(h, case, writing, event=None):
     lookup = h.wait(lambda: h.lookup(ticket["root"], ticket["player"] == "PlayerB"), "Actual Job reader", 35)
     lookup_nanos = time.monotonic_ns() - started
     require(lookup.get("job") and all(job.get(k) == v for k, v in lookup["job"].items()), "Acknowledged Job body changed")
+    h.wait(lambda: h.observation()["gameTick"] > before["gameTick"],
+           "Fresh native settlement frame after the original activity intake", 20)
     _, after = h.capture(folder, "after")
     row = {"case": case, "ticket": ticket, "beforeFrame": before, "afterFrame": after,
            "terminalJob": job, "lookup": lookup, "lookupNanos": lookup_nanos, "trajectory": trajectory,

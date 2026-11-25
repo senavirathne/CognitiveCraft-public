@@ -123,8 +123,13 @@ public final class FabricPickupProtocol implements PickupProtocol {
             var intent=new NativePickup.Intent(new Key(k.world(),k.root(),k.step(),k.attempt(),k.generation(),2),h,request.operation(),request.expected(),conditions,lineage.actorTrail(),lineage.dropTrail());
             phases[4]=System.nanoTime();
             var port=nativeStorage();if(port==null || !port.available())throw new IllegalStateException("Native entity storage unavailable");
-            var touched=new LinkedHashSet<>(lineage.actorTrail().chunks());touched.addAll(lineage.dropTrail().chunks());
-            var chunks=List.copyOf(touched);
+            var chunks=lineage.actorTrail().chunks();
+            var dropChunks=lineage.dropTrail().chunks();
+            if(!chunks.containsAll(dropChunks)) {
+                var touched=new LinkedHashSet<>(chunks);
+                touched.addAll(dropChunks);
+                chunks=List.copyOf(touched);
+            }
             var ticket=new NativeTicket(request,action,lineage,intent,null,job,chunks);tickets.add(ticket);
             phases[5]=System.nanoTime();
             return ticket;

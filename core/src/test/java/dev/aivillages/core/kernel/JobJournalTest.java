@@ -32,6 +32,20 @@ final class JobJournalTest {
         try(var journal=JobJournal.open(world,scene.world)){assertFalse(journal.readOnly());assertEquals(source,journal.snapshot());}
         assertArrayEquals(encoded,Files.readAllBytes(directory.resolve("state.jsonl")));
     }
+    @Test void changedJobAndUnchangedRowsKeepTheirExactJournalBytesAcrossEncodes() throws Exception {
+        var scene=new JobLifecycleStoreTest.Scene();
+        Job retained=scene.create(1); Job updated=scene.create(1);
+        Snapshot before=scene.memory.state;
+        byte[] original=legacyBytes(before);
+        assertArrayEquals(original,JobJournal.encode(before));
+        scene.report(scene.assign(updated),1,ExecutionStatus.SUCCEEDED);
+        Snapshot after=scene.memory.state;
+        assertSame(retained,after.jobs().stream().filter(j->j.id().equals(retained.id())).findFirst().orElseThrow());
+        byte[] changed=JobJournal.encode(after);
+        assertArrayEquals(legacyBytes(after),changed);
+        assertFalse(Arrays.equals(original,changed));
+        assertArrayEquals(original,JobJournal.encode(before));
+    }
     @Test void recordScopedStrictUtf8PreservesMultibyteEvidenceWithoutChangingTheJournal() throws Exception {
         var scene=new JobLifecycleStoreTest.Scene();Snapshot source=unicodeSnapshot(scene);byte[] encoded=JobJournal.encode(source);
         assertArrayEquals(legacyBytes(source),encoded);

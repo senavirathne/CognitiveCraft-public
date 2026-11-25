@@ -311,6 +311,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             v.setXxa(0.0F);v.setYya(0.0F);v.setSpeed(0.0F);
         }
         routes.remove(actor.entityId());
+        recipeSettled.remove(actor.entityId());
     }
     private void stopOwnedNavigation(Villager v, Route route) {
         if (route == null || !GatewayControl.holds(v, route.runId)) return;
