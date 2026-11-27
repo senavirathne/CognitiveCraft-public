@@ -65,6 +65,10 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     private final Map<UUID,Run> live=new HashMap<>();
     private final HashSet<UUID> appliedHere=new HashSet<>();
     private final Map<UUID,List<NativeRecipeJournal.Entry>> resumedPrefixes=new HashMap<>();
+    // Only tokens from the bounded native journal can enter this process-local cache.
+    private final Map<UUID,AcceptedReceipt> acceptedReceipts = new HashMap<>();
+
+    private record AcceptedReceipt(Jobs.Job owner, NativeRecipeJournal.Entry evidence) {}
 
     private static final class Run {
         final UUID root,step,attempt;
@@ -717,16 +721,26 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
     private boolean accepted(NativeRecipeJournal.Entry entry) {
         var intent=entry.intent();
         try {
-            var job=jobs.snapshot().jobs().stream().filter(row->row.id().equals(intent.root())).findFirst().orElse(null);
+            Jobs.Job job = null;
+            for (var row : jobs.snapshot().jobs()) {
+                if (row.id().equals(intent.root())) {
+                    job = row;
+                    break;
+                }
+            }
             // An acknowledged Job archive is a read model, never a new owner or
             // proof from current inventory counts. Missing/unknown history fences.
             if(job==null && history!=null && history.ready())job=history.archived(intent.root());
             if(job==null || job.activity()==null)return false;
+            var previous = acceptedReceipts.get(intent.token());
+            if (previous != null && previous.owner() == job && previous.evidence() == entry) return true;
             var attempt=job.attempts().stream().filter(row->row.id().equals(intent.attempt())).findFirst().orElse(null);
             var step=attempt==null?null:job.activity().forAttempt(attempt.id());
             if(!durable(step) || !matching(job,attempt,step,intent))return false;
             var expected=receipt(attempt.bound(),step.exactChoice()?step.choice().recipe():null,entry);
-            return attempt.resourceReceipts().contains(expected);
+            if (!attempt.resourceReceipts().contains(expected)) return false;
+            acceptedReceipts.put(intent.token(), new AcceptedReceipt(job, entry));
+            return true;
         }catch(RuntimeException unavailable){return false;}
     }
 
