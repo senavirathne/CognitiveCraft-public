@@ -212,7 +212,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
             recipeSettled.remove(v.getUUID());long travel=sampleTravel(v);
             return travel>1 ? terminal(v,routes.get(v.getUUID()),"invalid-travel",0,travel) : new Movement(false,false,0,travel);
         }
-        var result=navigate(actor,target,maximum,false,false,null,null,reserved,additional);
+        var result=navigate(actor,target,maximum,false,false,null,null,reserved,additional,reserved==null && additional==null);
         if(!result.reached()) {recipeSettled.remove(v.getUUID());return result;}
         var motion=v.getDeltaMovement();
         if(motion.x*motion.x+motion.z*motion.z>0.0001 || motion.y>0.0001) {
@@ -500,6 +500,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     }
     private Movement navigate(ActorRef actor,Cell target,int maxNavigationCalls,boolean sourceApproach,boolean solidApproach,
                               Vec3 interactionPoint,BlockPos interactionBlock,BlockPos reserved,BlockPos additional) {
+        return navigate(actor,target,maxNavigationCalls,sourceApproach,solidApproach,interactionPoint,interactionBlock,reserved,additional,false);
+    }
+    private Movement navigate(ActorRef actor,Cell target,int maxNavigationCalls,boolean sourceApproach,boolean solidApproach,
+                              Vec3 interactionPoint,BlockPos interactionBlock,BlockPos reserved,BlockPos additional,boolean settleRecipe) {
         Villager v = villager(actor);
         if (v == null) {
             routes.remove(actor.entityId());
@@ -536,9 +540,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         boolean selectedFace = route == null || route.approachTarget == null
                 || now.getX() == route.approachTarget.getX() && now.getZ() == route.approachTarget.getZ()
                 && Math.abs(v.getY()-route.approachTarget.getY())<=0.125;
+        // A routed recipe worker should finish its declared standing approach.
+        // Crossing the interaction radius while walking is not stable custody reach.
+        boolean recipeApproach = !settleRecipe || route==null || route.approachTarget==null || now.equals(route.approachTarget);
         boolean clearStanding=reserved==null || !v.getBoundingBox().intersects(new AABB(reserved));
         boolean sharedReach=additional==null || loaded(additional) && recipeReach(v,additional);
-        if (clearStanding && sharedReach && (!solidApproach || adjacent && v.onGround() && selectedFace) && canReach(v,point,rayTarget) && (!sourceApproach
+        if (recipeApproach && clearStanding && sharedReach && (!solidApproach || adjacent && v.onGround() && selectedFace) && canReach(v,point,rayTarget) && (!sourceApproach
                 || v.distanceToSqr(point) <= (ownedDrop ? OAK_DROP_APPROACH_DISTANCE_SQUARED : SOURCE_APPROACH_DISTANCE_SQUARED))) {
             if (oakApproach) {
                 stopOwnedNavigation(v, route);
@@ -574,9 +581,9 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if (route.policy.stage() == NavigationRoute.Stage.FOLLOW_PATH) {
             Path active = v.getNavigation().getPath();
             NavigationRoute.PathSample sample = active == null ? null : sample(active, v);
-            var endpoint = oakEndpoint(v,route,active);
+            var endpoint = settledEndpoint(v,route,active,settleRecipe);
             if (route.policy.follow(sample, tick(),endpoint) == NavigationRoute.Follow.CONTINUE) {
-                if(endpoint!=null)refineOakEndpoint(v,route,endpoint);
+                if(endpoint!=null)refineEndpoint(v,route,endpoint);
                 return new Movement(false, false, 0, travel);
             }
             stopOwnedNavigation(v, route);
@@ -615,12 +622,12 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
                 if (initial == null) route.policy.abandon("no-active-path");
                 else {
                     route.approachTarget = candidate;
-                    var endpoint=oakEndpoint(v,route,active);
+                    var endpoint=settledEndpoint(v,route,active,settleRecipe);
                     route.policy.accepted(initial, tick(),endpoint);
                     if (initial.node() >= initial.count() && endpoint==null) {
                         route.policy.abandon("finished-outside-reach");
                         stopOwnedNavigation(v, route);
-                    } else if(endpoint!=null)refineOakEndpoint(v,route,endpoint);
+                    } else if(endpoint!=null)refineEndpoint(v,route,endpoint);
                 }
             }
             if (route.policy.stage() == NavigationRoute.Stage.SELECT_APPROACH)
@@ -631,9 +638,9 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         }
         return terminal(v, route, "approaches-exhausted", 0, travel);
     }
-    private NavigationRoute.Position oakEndpoint(Villager v,Route route,Path path) {
+    private NavigationRoute.Position settledEndpoint(Villager v,Route route,Path path,boolean settleRecipe) {
         BlockPos goal=route.approachTarget;
-        if(!(route.solidApproach || route.dropApproach || route.reserved!=null || route.additional!=null) || goal==null || path==null || !path.isDone()
+        if(!(settleRecipe || route.solidApproach || route.dropApproach || route.reserved!=null || route.additional!=null) || goal==null || path==null || !path.isDone()
                 || path.getEndNode()==null || !GatewayControl.holds(v,route.runId)
                 || !v.onGround() || Math.abs(v.getY()-goal.getY())>0.125 || !walkable(v,goal))return null;
         var end=path.getEndNode();
@@ -645,7 +652,7 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
         if(v.distanceToSqr(point)>1.0 || !canReach(v,point,goal))return null;
         return new NavigationRoute.Position(point.x,point.y,point.z);
     }
-    private void refineOakEndpoint(Villager v,Route route,NavigationRoute.Position endpoint) {
+    private void refineEndpoint(Villager v,Route route,NavigationRoute.Position endpoint) {
         // The native path ended within its normal tolerance, outside the exact
         // interaction position. Ordinary collision-aware movement closes this last step;
         // the same policy still checks real path identity, progress and stall time.

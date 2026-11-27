@@ -4,6 +4,20 @@ from native_nbt import chunk
 from recovery_cases import originals
 from review_receipt_prefix import dimension_root,regions,entity_uuid
 
+SUCCESSOR_GATE=(67,208,75)
+SUCCESSOR_POSE=(67.5,208,76.5)
+
+def inside_successor_pen(position):
+    x,y,z=position
+    return 66<=x<69 and 208<=y<210 and 76<=z<78
+
+def successor_pen():
+    walls={(x,y,z):('minecraft:stone',{}) for x in range(65,70) for z in range(75,79)
+           if x in (65,69) or z in (75,78) for y in range(208,211)}
+    walls[SUCCESSOR_GATE]=('minecraft:oak_fence_gate',{'facing':'south'})
+    walls[67,209,75]=walls[67,210,75]=('minecraft:air',{})
+    return walls
+
 def expected_case(kind):
     from lifecycle_cases import HANDOFF_CASES
     from pathlib import Path
@@ -36,12 +50,15 @@ def setup(h,case):
             return {'actor':actor,'player':player,'gameTick':frame['gameTick']}
     before_wall=h.wait(outside,'Unrelated native actor and player clear of the handoff wall before setup',20)
     commands=['fill 64 208 64 80 210 64 minecraft:stone','fill 64 208 80 80 210 80 minecraft:stone',
-              'fill 64 208 65 64 210 79 minecraft:stone','fill 80 208 65 80 210 79 minecraft:stone']
+              'fill 64 208 65 64 210 79 minecraft:stone','fill 80 208 65 80 210 79 minecraft:stone',
+              'fill 65 208 75 69 210 78 minecraft:stone','fill 66 208 76 68 210 77 minecraft:air',
+              'setblock 67 208 75 minecraft:oak_fence_gate[facing=south]',
+              'fill 67 209 75 67 210 75 minecraft:air']
     h.console(commands)
     return {'schema':2,'kind':'ORDINARY_STATIC_SAME_ROOT_HANDOFF_ARENA','case':case,'blocks':len(layout()),
             'entityChunk':[4,4],'destinationFixedBeforeJobCreation':[78,208,74],'copiedTemplateDestination':[81,208,74],'normalAI':True,
             'commands':commands,'nonparticipantBeforeWall':before_wall,
-            'geometry':'Closed ordinary perimeter; complete paths and both source/destination inside one entity root',
+            'geometry':'Closed ordinary perimeter and successor pen within one entity root',
             'metadataRepaired':False,'nativeGameplayQualification':'REQUIRED_FRESH_CONNECTED_RUN'}
 
 def native_block(world,pos,cache):
@@ -70,9 +87,11 @@ def review(world,case,old,successor,record):
     assert record['entityChunk']==[4,4] and record['blocks']==192 and record['normalAI'] is True and record['metadataRepaired'] is False
     assert record['destinationFixedBeforeJobCreation']==[78,208,74] and record['copiedTemplateDestination']==[81,208,74]
     cache={}
-    for pos,(name,properties) in layout().items():
+    cells=layout()|successor_pen()
+    for pos,(name,properties) in cells.items():
         actual,props=native_block(world,pos,cache);assert actual==name,(pos,name,actual)
         assert all(props.get(k)==v for k,v in properties.items()),(pos,properties,props)
+        if pos==SUCCESSOR_GATE:assert props.get('open','false')=='false','Successor gate was open at the saved cut'
     native={entity_uuid(e):e for frame in regions(world,'entities') for e in frame.get('Entities',[])}
     assert old!=successor
     cleared=record['nonparticipantBeforeWall'];outsider=cleared['actor']
@@ -81,5 +100,6 @@ def review(world,case,old,successor,record):
     for id in (old,successor):
         actor=native[id];assert actor['id']=='minecraft:villager' and not actor.get('NoAI',0) and actor.get('Age',0)>=0 and actor['Health']>0
         assert [int(actor['Pos'][0])//16,int(actor['Pos'][2])//16]==[4,4],('Handoff actor left the supported root',id,actor['Pos'])
-    return {'status':'PASS_NATIVE_STATIC_HANDOFF_FIXTURE','blocksChecked':192,'chunksChecked':len(cache),
+    assert inside_successor_pen(native[successor]['Pos']) and not inside_successor_pen(native[old]['Pos']), 'Original workers overlapped the successor pen'
+    return {'status':'PASS_NATIVE_STATIC_HANDOFF_FIXTURE','blocksChecked':len(cells),'chunksChecked':len(cache),
             'normalAdultActorsChecked':2,'entityChunk':[4,4],'originalTaskUnchanged':True,'metadataRepaired':False}

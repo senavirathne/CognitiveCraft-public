@@ -68,14 +68,16 @@ class LifecycleHarness(RecoveryHarness):
         require(not any(s in result for s in ('Unknown or incomplete command','Incorrect argument','No entity was found')),command+' failed: '+result)
         return result
     def relocate_companion(self):
+        from handoff_fixture import SUCCESSOR_POSE,inside_successor_pen
         self.vanilla('PlayerA','/gamemode spectator');self.vanilla('PlayerA','/tp 329.5 208 69.5')
         self.wait(lambda:(v if (v:=self.life(self.companion[0])) and v['identity']['availability']=='LOADED' else None),'Actual companion loaded before fixture relocation',60)
-        self.vanilla('PlayerA','/tp '+self.companion[1]+' 68.5 208 68.5')
+        self.vanilla('PlayerA','/tp '+self.companion[1]+' '+coord(SUCCESSOR_POSE))
         self.vanilla('PlayerA','/tp 66.5 208 69.5')
         self.wait(lambda:any(a['uuid']==self.companion[1] for a in self.client_snapshot('PlayerA').get('entities',[])),
                   'Actual main arena and companion loaded before returning to survival',40)
         self.vanilla('PlayerA','/gamemode survival')
-        self.wait(lambda:any(a['uuid']==self.companion[1] for a in self.snapshot()['actors']),'Actual same companion reaches the main arena',40)
+        self.wait(lambda:any(a['uuid']==self.companion[1] and inside_successor_pen(a['pos']) for a in self.snapshot()['actors']),
+                  'Actual same successor in the isolated pen before original work',40)
     def reset(self,*args,**kwargs):
         value=super().reset(*args,**kwargs)
         if self.move_companion:
@@ -393,7 +395,7 @@ def death_case(h,seed,template,kind):
 
 
 def handoff_case(h,seed,template,kind):
-    from handoff_fixture import expected_case
+    from handoff_fixture import SUCCESSOR_GATE,expected_case
     h.handoff_template=expected_case(kind)
     h.move_companion=True
     try:directory,case,value=original_control(h,seed,h.handoff_template,kind,'RESULT_ACKNOWLEDGED')
@@ -421,6 +423,10 @@ def handoff_case(h,seed,template,kind):
         require(len(final['attempts'])==1 and sum(a['credited'] for a in final['attempts'])==1,'Denied successor gained an assignment or duplicate delivery')
         status='PASS_DENIED_STALE_AND_SAME_NAME_SUCCESSOR'
     else:
+        gate=','.join(map(str,SUCCESSOR_GATE))
+        h.walk('PlayerA',SUCCESSOR_GATE,reach=2.2)
+        h.action('PlayerA','use',pos=SUCCESSOR_GATE)
+        h.wait(lambda:'open=true' in h.snapshot()['blocks'].get(gate,''),'The connected player opened the original successor pen',25)
         if kind=='handoff-revoked':h.vanilla('PlayerB','/gamerule minecraft:mob_griefing false')
         value['authorization']=h.command('PlayerA',command,'handoff=true')
         if kind=='handoff-revoked':

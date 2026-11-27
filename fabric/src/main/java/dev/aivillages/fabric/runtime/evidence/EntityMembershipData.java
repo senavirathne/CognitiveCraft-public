@@ -8,6 +8,7 @@ import java.util.*;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.npc.villager.Villager;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.storage.*;
 
@@ -43,8 +44,13 @@ public final class EntityMembershipData {
     private void moved(NativePickup.Trail captured) {
         if(!membership || marker==null || !(entity.level() instanceof ServerLevel level))return;
         var state=((DepositParticipant)entity).cognitivecraft$depositParticipant();
-        if(!state.valid() || state.revision()!=revision || state.marker()==null
-                || state.marker().phase()==MarkerPhase.RESULT && !state.marker().equals(marker)){trail.gap();return;}
+        var current=state.marker();
+        // Later inventory work can change the same villager without obscuring
+        // a witnessed move. Keep the old result's exact marker and revision.
+        boolean sameActorResult=entity instanceof Villager && marker.equals(current) && state.revision()>revision;
+        if(!state.valid() || !captured.incarnation().equals(state.incarnation()) || current==null
+                || state.revision()!=revision && !sameActorResult
+                || current.phase()==MarkerPhase.RESULT && !current.equals(marker)){trail.gap();return;}
         var storage=NativeEntityStorage.get(level);if(storage==null || !storage.available()){trail.gap();return;}
         var role=entity instanceof ItemEntity?NativePickup.Role.DROP:NativePickup.Role.ACTOR;
         for(var c:captured.chunks())if(!storage.stageMembership(new ChunkPos(c.x(),c.z()),new EntityChunkMembershipState.Row(role,captured,revision,marker,

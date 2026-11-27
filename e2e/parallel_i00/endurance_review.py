@@ -379,6 +379,12 @@ def review(root, source, jar):
                 and persisted.get("submission", persisted.get("submissionId")) == final["submissionId"],
                 "Historical lookup changed original terminal activity or attempt")
     replay = status["replay"]
+    early_owner = next(iter(jobs.values()))["request"]["context"]["principal"]
+    early = next((j["id"] for j in list(jobs.values())[:RESTART_AFTER[0]] if j["state"] == "SUCCEEDED"
+                  and j["request"]["context"]["principal"] == early_owner and j["id"] not in hot), None)
+    require(early is not None and early in archived and status["archiveReplayRoot"] == early
+            and replay["job"]["id"] == early,
+            "Replay control does not identify the oldest independently archived first-cohort success")
     require(replay["status"] == "PASS" and replay["hot"] is False and replay["hotUnchanged"] is True
             and replay["sameReceipt"]["code"] == "DUPLICATE" and replay["changedReceipt"]["code"] == "REJECTED"
             and replay["staleSubmission"]["code"] == "REJECTED" and status["foreignReplay"]["status"] == "DENIED",

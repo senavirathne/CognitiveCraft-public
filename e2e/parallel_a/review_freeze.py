@@ -163,7 +163,7 @@ def review(root,profile,source,jar,*,verify_bundle=verify_original_bundle,stage=
             details['savedNormalAIForeignFixtures'][name]={phase:review_world(folder/phase,record,task)
                                                           for phase in ('starting-world','terminal-world')}
         details['savedHandoffMembership']=handoff_membership(root)
-        from handoff_fixture import review as fixture_review
+        from handoff_fixture import SUCCESSOR_GATE,native_block,review as fixture_review
         from lifecycle_cases import HANDOFF_CASES
         details['physicalHandoffFixtures']={}
         for name in HANDOFF_CASES:
@@ -171,6 +171,9 @@ def review(root,profile,source,jar,*,verify_bundle=verify_original_bundle,stage=
             assert record==row['physicalFixture']
             details['physicalHandoffFixtures'][name]=fixture_review(folder/'killed-world',row['originalCase'],
                 row['originalAtCut']['attempts'][0]['worker']['entityId'],row['successor']['entityId'],record)
+            if name!='handoff-stale-successor':
+                gate,properties=native_block(folder/'terminal-world',SUCCESSOR_GATE,{})
+                assert gate=='minecraft:oak_fence_gate' and properties.get('open')=='true'
     elif profile=='A08':
         from review_claims_connected import review as original
         details=original(root,source);assert details['status']=='PASS_BOUNDED_STAGING_NATIVE_REVIEW'

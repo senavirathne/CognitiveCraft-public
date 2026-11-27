@@ -451,8 +451,25 @@ def run(root, source, jar):
         status["finalProcess"] = native_process(h)
         status["finalCalls"] = h.model_calls()
         for point in (*WAREHOUSE, *SHARED_TARGETS):
+            # Walk the clear warehouse aisle between inspections. Direct client
+            # movement from one chest to another can run into the intervening stock.
+            aisle = [point[0], point[1], 70]
+            h.walk("PlayerA", aisle, reach=.9)
             status["clientStock"].append({"position": point, "planks": h.menu_count("PlayerA", point, PLANK)})
-        early = read(root / "activities/0001/intake.json")["root"]
+            h.walk("PlayerA", aisle, reach=.9)
+        hot = {job["id"] for job in status["finalStorage"]["hot"]["jobs"]}
+        early = None
+        for index in range(1, RESTART_AFTER[0] + 1):
+            original = read(root / "activities" / f"{index:04d}" / "result.json")
+            ticket, terminal = original["ticket"], original["terminalJob"]
+            if ticket["player"] == "PlayerA" and terminal["state"] == "SUCCEEDED" and ticket["root"] not in hot:
+                early = ticket["root"]
+                break
+        require(early is not None, "An original first-cohort success must have left the hot Jobs store")
+        archived = h.wait(lambda: h.lookup(early), "Original archived Job is privately readable", 40)
+        require(archived["status"] == "PASS" and archived["hot"] is False and archived["job"]["id"] == early,
+                "Replay control requires an actual historical original")
+        status["archiveReplayRoot"] = early
         status["replay"] = h.wait(lambda: h.lookup(early, replay=True), "Original archived Job exact replay", 40)
         status["foreignReplay"] = h.wait(lambda: h.lookup(early, foreign=True), "Foreign archived Job privacy", 40)
         status["finalSave"] = h.save_checkpoint()
