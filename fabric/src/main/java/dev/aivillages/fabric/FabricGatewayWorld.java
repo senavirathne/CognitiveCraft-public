@@ -119,6 +119,10 @@ public final class FabricGatewayWorld implements SurvivalGateway.WorldAccess {
     Villager recipeActor(ActorRef actor) {
         Villager v=villager(actor);return v!=null && loaded(v.blockPosition()) ? v : null;
     }
+    boolean awaitingRecipeLanding(ActorRef actor, UUID run) {
+        Villager v=recipeActor(actor);
+        return v!=null && !v.onGround() && GatewayControl.holds(v,run);
+    }
     Container recipeContainer(ContainerRef ref) {
         return ref.dimension().equals(dimension()) && loaded(new BlockPos(ref.x(),ref.y(),ref.z()))
                 ? oakBox(new BlockPos(ref.x(),ref.y(),ref.z())) : null;

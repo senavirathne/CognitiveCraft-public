@@ -67,6 +67,49 @@ final class PlanningBoundaryTest {
         assertEquals(5,resumed.memory().observedUsage().get(Counter.TRAVEL));
         assertEquals(0,resumed.memory().observedUsage().get(Counter.MODEL_CALLS));
     }
+    @Test void movingBetweenInfeasibleRoutesDoesNotRenewAnActivityPlanningDecision() {
+        var fixture=new PlannerFixtures().logSource(3);
+        fixture.budget=budget(128,64,1800,0,0,256,151000);
+        var source=fixture.acquisition.getFirst();
+        var site=fixture.facility;
+        var memory=Memory.empty();
+        int persisted=0;
+        String priorPoll="";
+        for(int n=0;n<36;n++){
+            long walking=18+n%3;
+            gatheringQuotes(fixture,source,site,walking,10,16);
+            var snapshot=fixture.snapshot();
+            String poll=PlanningCoordinator.observationStamp(snapshot);
+            assertNotEquals(priorPoll,poll);
+            priorPoll=poll;
+            var blocked=coordinator.nextActivity(snapshot,null,memory,1,8,true);
+            assertNull(blocked.proposal());
+            if(!blocked.memory().equals(memory))persisted++;
+            memory=blocked.memory();
+            fixture.now+=500;
+        }
+        assertEquals(5,persisted);
+        assertEquals(4,memory.unchangedChecks());
+        assertEquals(Long.MAX_VALUE,memory.nextCheckMillis());
+
+        gatheringQuotes(fixture,source,site,13,7,13);
+        var available=coordinator.nextActivity(fixture.snapshot(),null,memory,1,8,true);
+        assertEquals(DecisionKind.PROPOSE,available.kind(),available.blocker());
+        assertEquals(Kind.ACQUIRE,available.proposal().kind());
+        assertEquals(1768,available.analysis().allowance().ticks());
+        assertEquals(1800,fixture.budget.original().get(Counter.ELAPSED_TICKS));
+        assertEquals(memory.originalDeadlineMillis(),available.memory().originalDeadlineMillis());
+    }
+
+    private static void gatheringQuotes(PlannerFixtures f,Acquisition source,Facility site,
+                                        long acquiring,long processing,long placement) {
+        f.acquisition.set(0,new Acquisition(source.key(),source.source(),source.result(),source.availableUnits(),
+                source.availability(),source.permitted(),source.reachable(),source.method(),new Cost(acquiring,4,144+6*acquiring)));
+        f.facility=new Facility(site.reference(),site.availability(),site.permitted(),site.reachable(),site.identity(),
+                site.approvedSiteFree(),site.relevantRevision(),site.placement(),new Cost(placement,3,100+6*placement));
+        f.recipes.replaceAll(r->new RecipeProfile(r.recipe(),r.capability(),r.cells(),r.result(),r.semanticFingerprint(),
+                r.method(),new Cost(r.axe()?19:processing,4,r.axe()?214:100+6*processing),r.reloadEpoch()));
+    }
     @Test void persistedPlanReusesOriginalMethodsAndRevalidatesActualIntermediateStock() throws Exception {
         var fixture=new PlannerFixtures().logs(3);
         var original=planner.analyse(fixture.snapshot()).plan();

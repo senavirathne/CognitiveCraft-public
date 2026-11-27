@@ -317,7 +317,7 @@ class AssessmentHarness(Harness):
                         COGNITIVECRAFT_NEEDLE_DIR="/evidence/needle")
         self.compose("build", "minecraft")
         self.compose("up", "-d", "ollama")
-        self.compose("exec", "-T", "ollama", "ollama", "pull", self.env["COGNITIVECRAFT_OLLAMA_MODEL"])
+        self.pull_generation_model()
         with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=20) as response:
             models = json.load(response)
         atomic(self.root / "models.json", models)

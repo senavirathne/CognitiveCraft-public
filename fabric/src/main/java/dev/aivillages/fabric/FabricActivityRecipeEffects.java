@@ -216,6 +216,9 @@ final class FabricActivityRecipeEffects implements SurvivalGateway.ExactRecipeEf
         long stop=Math.min(Math.min(deadline,usage.deadline()),owner.current().allowance().deadlineEpochMillis());
         if(clock.millis()>stop)return refusal(Reason.BUDGET_EXHAUSTED,0);
         if(!permits(run,phase))return refusal(Reason.AUTHORITY_DENIED,0);
+        // A settled approach can still be followed by ordinary gravity off a container edge.
+        if(run.site==null && phase==Stage.WITHDRAW && world.awaitingRecipeLanding(run.actor,run.attempt))
+            return waiting(0);
         try {
             List<ContainerRef> containers=containers(run,phase);
             usage.debit(Budgets.Kind.OBSERVATIONS,32L+54L*containers.size());

@@ -1,4 +1,4 @@
-"""Hold only the additional read-only P adoption cohort after actual saved proof."""
+"""Observe the original saved P cohort on a held native clock."""
 import hashlib,json,uuid
 from pathlib import Path
 from recovery_fixture import marker
@@ -7,12 +7,13 @@ REQUEST='adoption-cohort-clock.json'
 RECEIPT='adoption-cohort-clock-reached.json'
 
 def request(root,case,proof):
-    assert case['id']=='W6-003' and case['checkpoint']=='PICKUP'
+    assert case['id'] in ('W6-003','heldout-W6-003') and case['checkpoint']=='PICKUP'
     assert proof['status']=='PASS_INDEPENDENT_NATIVE_PICKUP'
     entry=proof['entry'];key=entry['intent']['key']
     assert key['ordinal']==2 and entry['result']['live']=='COMPLETE'
-    value={'schema':1,'id':str(uuid.uuid4()),'case':case['id'],'key':key,'expected':marker(entry),
-           'scope':'Read-only adoption re-kill only, after original physical P cut; no work or credit.'}
+    scope=('Read-only first saved cohort before ordinary world movement.' if case['id']=='heldout-W6-003'
+           else 'Read-only adoption re-kill only, after original physical P cut; no work or credit.')
+    value={'schema':1,'id':str(uuid.uuid4()),'case':case['id'],'key':key,'expected':marker(entry),'scope':scope}
     path=Path(root)/'server'/REQUEST
     assert not path.exists();path.write_text(json.dumps(value,indent=2)+'\n')
     return value

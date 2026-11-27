@@ -380,7 +380,7 @@ class CraftingHarness(Harness):
         self.compose("build", "minecraft")
         if selected:
             self.compose("up", "-d", "ollama")
-            self.compose("exec", "-T", "ollama", "ollama", "pull", self.env["COGNITIVECRAFT_OLLAMA_MODEL"])
+            self.pull_generation_model()
         self.fresh(two=False)
         enrollment = {"before": self.snapshot(), "subjects": []}
         subjects = sorted(enrollment["before"]["actors"], key=lambda actor: actor["uuid"])

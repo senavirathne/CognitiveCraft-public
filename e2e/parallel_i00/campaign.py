@@ -27,6 +27,17 @@ CASES_PER_WORLD = 16
 RECOVERY_GATE = [64, 208, 74]
 
 
+def recovery_reserve_separate(frame, reserve, measured):
+    def inside(actor):
+        x, y, z = actor["pos"]
+        return 64 <= x < 66 and 208 <= y < 210 and 74 <= z < 78
+
+    actors = {actor["uuid"]: actor for actor in frame["actors"]}
+    return (reserve in actors and inside(actors[reserve])
+            and all(worker in actors and not inside(actors[worker]) for worker in measured)
+            and "open=false" in frame["blocks"].get(",".join(map(str, RECOVERY_GATE)), ""))
+
+
 def schedule_file(root, index, count):
     cases = shard(original(), index, count)
     controls = controls_for(cases, material_controls())
@@ -64,15 +75,18 @@ class OriginalCampaign(NativeGameplay):
         if case["mode"] != "recovery" or case["interruption"] != "restart":
             return state
         earlier = {actor["uuid"] for actor in state["actors"]}
-        self.console(["fill 63 208 74 66 208 78 minecraft:oak_fence",
-                      "fill 64 208 75 65 208 77 minecraft:air",
+        # Keep measured workers outside the reserve pen even from the adjacent barrel.
+        self.console(["fill 63 208 74 66 210 78 minecraft:glass",
+                      "fill 64 208 75 65 210 77 minecraft:air",
                       "setblock " + coord(RECOVERY_GATE) + " minecraft:oak_fence_gate[facing=north]",
+                      "setblock 64 209 74 minecraft:air",
                       "summon minecraft:villager 64.5 208 76.5 {PersistenceRequired:1b}"])
 
         def reserved():
             frame = self.snapshot()
             workers = [actor for actor in frame["actors"] if actor["uuid"] not in earlier]
-            if len(workers) == 1 and workers[0]["alive"] and not workers[0]["noAI"] and not workers[0]["baby"]:
+            if (len(workers) == 1 and workers[0]["alive"] and not workers[0]["noAI"] and not workers[0]["baby"]
+                    and recovery_reserve_separate(frame, workers[0]["uuid"], earlier)):
                 return frame, workers[0]["uuid"]
 
         state, self.offline_worker = self.wait(reserved, "Unenrolled ordinary worker reserved before the restart fixture save")
@@ -381,6 +395,10 @@ def review_case(case, row, root, pins, recipes, validate):
         if case["interruption"] == "restart":
             reuse = row["execution"]["offlineReuse"]
             old = row["execution"]["postInterruption"]["state"]
+            measured = {citizen["actor"]["entityId"] for citizen in old["knownPlayers"]["PlayerA"]["citizens"]["citizens"]}
+            require(all(recovery_reserve_separate(frame, reuse["reuseActor"], measured) for frame in
+                        (row["before"], row["execution"]["boundary"]["snapshot"], old)),
+                    "A measured worker crossed the closed reserve enclosure before the connected release")
             before, after = reuse["before"], reuse["after"]
             source, destination, facility = [",".join(map(str, p)) for p in RECOVERY_REUSE]
             require(reuse["originalActor"] == row["bindings"]["actor"] and reuse["reuseActor"] != reuse["originalActor"]

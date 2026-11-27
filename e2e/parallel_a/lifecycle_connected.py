@@ -1,5 +1,5 @@
 """A07 Docker clients: native lifecycle matrix, explicit handoff and nine frozen W-04 contexts."""
-import argparse,copy,json,math,shutil,subprocess,time,traceback,uuid
+import argparse,copy,json,math,os,shutil,subprocess,time,traceback,uuid
 from pathlib import Path
 from recovery_native import RecoveryHarness
 from recovery_seed import start as retained_seed

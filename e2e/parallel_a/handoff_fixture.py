@@ -23,12 +23,25 @@ def layout():
 
 def setup(h,case):
     assert case==expected_case(case['id']),'Changed original A07 handoff task'
+    # The generic setup puts the idle actor and its client inside the east wall's footprint.
+    outsider=h.entities['PlayerB']
+    assert outsider not in (h.entities['PlayerA'],h.companion[1]) and not h.actions_active
+    h.console(['tp '+outsider+' 82.5 208 68.5','tp PlayerB 82.5 208 69.5'])
+    def outside():
+        frame=h.snapshot() or {}
+        actor=next((a for a in frame.get('actors',[]) if a['uuid']==outsider),None)
+        player=h.client_snapshot('PlayerB') or {}
+        if (actor and actor['alive'] and not actor['noAI'] and not actor['controlled'] and actor['pos'][0]>=81
+                and player.get('play') and player['uuid']==h.players['PlayerB'] and player['pos'][0]>=81):
+            return {'actor':actor,'player':player,'gameTick':frame['gameTick']}
+    before_wall=h.wait(outside,'Unrelated native actor and player clear of the handoff wall before setup',20)
     commands=['fill 64 208 64 80 210 64 minecraft:stone','fill 64 208 80 80 210 80 minecraft:stone',
               'fill 64 208 65 64 210 79 minecraft:stone','fill 80 208 65 80 210 79 minecraft:stone']
     h.console(commands)
     return {'schema':2,'kind':'ORDINARY_STATIC_SAME_ROOT_HANDOFF_ARENA','case':case,'blocks':len(layout()),
             'entityChunk':[4,4],'destinationFixedBeforeJobCreation':[78,208,74],'copiedTemplateDestination':[81,208,74],'normalAI':True,
-            'commands':commands,'geometry':'Closed ordinary perimeter; complete paths and both source/destination inside one entity root',
+            'commands':commands,'nonparticipantBeforeWall':before_wall,
+            'geometry':'Closed ordinary perimeter; complete paths and both source/destination inside one entity root',
             'metadataRepaired':False,'nativeGameplayQualification':'REQUIRED_FRESH_CONNECTED_RUN'}
 
 def native_block(world,pos,cache):
@@ -62,6 +75,9 @@ def review(world,case,old,successor,record):
         assert all(props.get(k)==v for k,v in properties.items()),(pos,properties,props)
     native={entity_uuid(e):e for frame in regions(world,'entities') for e in frame.get('Entities',[])}
     assert old!=successor
+    cleared=record['nonparticipantBeforeWall'];outsider=cleared['actor']
+    assert outsider['uuid'] not in (old,successor) and outsider['alive'] and not outsider['noAI'] and outsider['pos'][0]>=81
+    assert cleared['player']['play'] and cleared['player']['pos'][0]>=81
     for id in (old,successor):
         actor=native[id];assert actor['id']=='minecraft:villager' and not actor.get('NoAI',0) and actor.get('Age',0)>=0 and actor['Health']>0
         assert [int(actor['Pos'][0])//16,int(actor['Pos'][2])//16]==[4,4],('Handoff actor left the supported root',id,actor['Pos'])

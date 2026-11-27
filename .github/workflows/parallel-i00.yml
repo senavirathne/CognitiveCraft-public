@@ -248,6 +248,7 @@ jobs:
             --entrypoint dev.aivillages.fabric.PlanningChoiceHostGameTests \
             --entrypoint dev.aivillages.fabric.BirchPlankEffectGameTests \
             --entrypoint dev.aivillages.fabric.OakPlankEffectGameTests \
+            --entrypoint dev.aivillages.fabric.RecipeLandingGameTests \
             --entrypoint dev.aivillages.fabric.StickEffectGameTests \
             --entrypoint dev.aivillages.fabric.AxeEffectGameTests \
             --entrypoint dev.aivillages.fabric.TableEffectGameTests \

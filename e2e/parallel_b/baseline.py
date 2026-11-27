@@ -61,7 +61,7 @@ def scenario(h, *, corrected=False):
     model = "qwen3:4b-instruct-2507-q4_K_M"
     h.env.update(COGNITIVECRAFT_OLLAMA_MODEL=model, COGNITIVECRAFT_E2E_SNAPSHOT_TICKS="1")
     h.compose("up", "-d", "ollama")
-    h.compose("exec", "-T", "ollama", "ollama", "pull", model)
+    h.pull_generation_model()
     req = urllib.request.Request("http://127.0.0.1:11434/api/generate",
             data=json.dumps({"model": model, "stream": False, "keep_alive": "30m"}).encode(),
             headers={"Content-Type": "application/json"})

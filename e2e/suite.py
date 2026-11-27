@@ -173,6 +173,18 @@ class Harness:
             raise RuntimeError("Docker Compose " + " ".join(args) + ": " + result.stderr[-2000:])
         return result
 
+    def pull_generation_model(self):
+        model = self.env["COGNITIVECRAFT_OLLAMA_MODEL"]
+        for attempt, delay in enumerate((12, 30, 60, None), start=1):
+            try:
+                return self.compose("exec", "-T", "ollama", "ollama", "pull", model)
+            except RuntimeError as failure:
+                if delay is None or not re.search(r"Error: (?:pull model manifest: )?503\b", str(failure)):
+                    raise
+                self.event("generation-model-pull-retry", {"model": model, "attempt": attempt,
+                           "status": 503, "nextAttemptSeconds": delay})
+                time.sleep(delay)
+
     def start(self, component: str):
         started = time.time() * 1000
         previous_controls = {name:digest(self.root/"server"/name) for name in ("control.json","control-ack.json")
@@ -1377,7 +1389,7 @@ def acquire_real_skill(h: Harness, *, after_offline_reuse=None):
     h.env["COGNITIVECRAFT_OLLAMA_MODEL"] = "qwen3:4b-instruct-2507-q4_K_M"
     h.env["COGNITIVECRAFT_NEEDLE_DIR"] = "/evidence/needle"
     h.compose("--profile", "ai", "up", "-d", "ollama")
-    h.compose("exec", "-T", "ollama", "ollama", "pull", h.env["COGNITIVECRAFT_OLLAMA_MODEL"])
+    h.pull_generation_model()
     import urllib.request
     def tags():
         try:

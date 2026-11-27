@@ -77,6 +77,8 @@ public final class RecipeLandingGameTests {
             }
             if(phase[0]==1 && v.onGround()){h.assertTrue(false,"Waiting for native onGround=false");return;}
             if(!v.onGround()){
+                h.assertTrue(world.awaitingRecipeLanding(actor,run),"Only the original held actor can wait for a recipe withdrawal");
+                h.assertTrue(!world.awaitingRecipeLanding(actor,principal),"A foreign run cannot wait using this actor");
                 var result=world.craftRecipe(actor,captured[0],custody[0]);
                 if(result.reason()!=null || result.committed()){
                     failure[0]="Actual native airborne craft rejected after withdrawal: "+result;
@@ -87,6 +89,7 @@ public final class RecipeLandingGameTests {
                 waits[0]++;phase[0]=2;h.assertTrue(false,"Waiting for ordinary landing");return;
             }
             h.assertTrue(waits[0]>0,"Native falling guard was exercised");
+            h.assertTrue(!world.awaitingRecipeLanding(actor,run),"The same actor is no longer waiting after landing");
             var crafted=world.craftRecipe(actor,captured[0],custody[0]);
             h.assertTrue(crafted.reason()==null && crafted.consumed()==1 && crafted.produced()==4,"Landing did not complete the same batch");
             var deposited=world.depositRecipeOutput(actor,source,captured[0],crafted.custodyAfter(),4);

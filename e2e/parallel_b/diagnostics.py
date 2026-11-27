@@ -161,7 +161,7 @@ def main():
         instruments(ROOT/'fabric/build/libs/ai-villages-0.1.0.jar',ROOT/'build/e2e-driver/observer.jar')
         atomic(h.root/'oracle-candidates.json',candidates(SDK/'minecraft-client.jar'));observer_inputs(h.root)
         h.env['COGNITIVECRAFT_OLLAMA_MODEL']='qwen3:4b-instruct-2507-q4_K_M'
-        h.compose('build','minecraft');h.compose('up','-d','ollama');h.compose('exec','-T','ollama','ollama','pull',h.env['COGNITIVECRAFT_OLLAMA_MODEL'])
+        h.compose('build','minecraft');h.compose('up','-d','ollama');h.pull_generation_model()
         with urllib.request.urlopen('http://127.0.0.1:11434/api/tags',timeout=20) as r:atomic(h.root/'models.json',json.load(r))
         h.fresh(two=True);enroll_subjects(h)
         h.command('PlayerA','/aivillage kernel inference true','admission=true')

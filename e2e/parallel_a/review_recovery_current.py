@@ -91,6 +91,22 @@ def one(root,case):
         assert released['ack']['id']==released['request']['id']
         assert released['snapshot']['gameTick']>clock['second']['gameTick']
         assert released['snapshot']['pid']==result['adoptionRestart']['after']['namespaceProcess']['pid']
+    if case['id']=='heldout-W6-003':
+        from gzip import decompress
+        from adoption_clock import check,check_snapshot
+        from native_nbt import read_nbt
+        from recovery_fixture import marker
+        recorded=result['firstSavedPickup'];held=recorded['held'];restart=result['firstRestart']
+        check(held,held['request'],restart['after'])
+        assert held['request']['case']==case['id'] and held['key']==before['key'] and held['marker']==marker(before['entry'])
+        assert held['originalJob']['request']==result['originalAtCut']['request']
+        assert held['process']==restart['reader']['process']
+        actual=check_snapshot(root,held)
+        saved=read_nbt(decompress((killed/'level.dat').read_bytes()))
+        assert actual['gameTick']==held['bootGameTick']==saved['Data']['Time']
+        released=recorded['released'];assert released['beforeOriginalCancellation']
+        assert released['request']['commands']==['tick unfreeze','tick rate 20'] and released['ack']['id']==released['request']['id']
+        assert released['snapshot']['gameTick']>held['bootGameTick'] and released['snapshot']['pid']==actual['pid']
     key=before['key'];cut=result['reached'];arm=result['arm']
     assert cut['stage']==arm['stage']==case['checkpoint'] and cut['point']==arm['point']=='RESULT_ACKNOWLEDGED' and cut['token']==arm['token']
     assert cut['commands']==[{'command':'tick freeze','result':1},{'command':'save-all flush','result':1}]

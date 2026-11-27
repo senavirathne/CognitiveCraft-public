@@ -18,15 +18,28 @@ public final class PlanningCoordinator {
                 "costs",Map.of("stock",s.stock().stream().map(x->x.key()+":"+x.travelCost()).sorted().toList(),
                         "recipes",s.recipes().stream().map(x->x.recipe()+":"+x.allowance()).sorted().toList())));
     }
-    private static String signature(Snapshot s,String segment){var value=new TreeMap<String,Object>();value.put("goal",s.goal().digest());value.put("credit",s.confirmedCredit());value.put("worldRevision",s.relevantWorldRevision());value.put("owner",s.owner().toString());value.put("facility",String.valueOf(s.facility()));value.put("segmentOrBlocker",segment);
+    private static String signature(Snapshot s,String segment){return signature(s,segment,true);}
+    private static String signature(Snapshot s,String segment,boolean routeQuotes){var value=new TreeMap<String,Object>();value.put("goal",s.goal().digest());value.put("credit",s.confirmedCredit());value.put("worldRevision",s.relevantWorldRevision());value.put("owner",s.owner().toString());value.put("segmentOrBlocker",segment);
+        var f=s.facility();
+        value.put("facility",routeQuotes || f==null?String.valueOf(f):List.of(f.reference().toString(),f.availability().name(),
+                f.permitted(),f.reachable(),f.identity(),f.approvedSiteFree(),f.relevantRevision(),String.valueOf(f.placement()),
+                f.placementAllowance().effects()));
         value.put("stock",s.stock().stream().sorted(Comparator.comparing(Stock::key)).map(x->Map.of("key",x.key(),"location",x.location().toString(),"item",x.item().value(),"units",x.units(),"observed",x.observedUnits(),"eligible",x.rootEligibleUnits(),"origin",x.eligibility().name(),"availability",x.availability().name(),"permitted",x.permitted(),"reachable",x.reachable())).toList());
-        value.put("methods",s.recipes().stream().map(r->r.recipe()+":"+r.semanticFingerprint()+":"+r.method()).sorted().toList());value.put("acquisition",s.acquisition().stream().map(Object::toString).sorted().toList());value.put("kinds",s.supportedKinds().stream().map(Enum::name).sorted().toList());
+        value.put("methods",s.recipes().stream().map(r->r.recipe()+":"+r.semanticFingerprint()+":"+r.method()).sorted().toList());
+        value.put("acquisition",routeQuotes?s.acquisition().stream().map(Object::toString).sorted().toList():
+                s.acquisition().stream().sorted(Comparator.comparing(Acquisition::key)).map(a->List.of(a.key(),a.source().toString(),
+                        a.result().value(),a.availableUnits(),a.availability().name(),a.permitted(),a.reachable(),
+                        String.valueOf(a.method()),a.allowance().effects())).toList());
+        value.put("kinds",s.supportedKinds().stream().map(Enum::name).sorted().toList());
         // Epoch-only reloads are not physical progress. Semantic/grid/binding changes remain visible.
         value.put("choices",s.choices().stream().map(o->o.choice().semanticFingerprint()+":"+o.choice().capability()+":"+o.choice().demand()+":"+o.choice().batches()).sorted().toList());return digest(value);}
     private static String budgetProblem(Snapshot s,Memory m){if(m.originalBudgetDigest().isEmpty())return "";if(!s.world().equals(m.world()) || !s.root().equals(m.root()) || !s.owner().originalOwner().equals(m.owner()) || !s.context().equals(m.context()))return "DECISION_MEMORY_SCOPE_MISMATCH";if(!s.goal().digest().equals(m.originalGoalDigest()))return "ORIGINAL_GOAL_CHANGED";if(!m.originalBudgetDigest().equals(s.budget().initialDigest()) || m.originalDeadlineMillis()!=s.budget().absoluteDeadlineMillis())return "ORIGINAL_BUDGET_OR_DEADLINE_CHANGED";for(var c:Counter.values())if(s.budget().used().get(c)<m.observedUsage().get(c))return "CUMULATIVE_USAGE_REGRESSED";return s.returnsUsed()<m.returnsUsed()?"CUSTODY_RETURN_COUNT_REGRESSED":"";}
     private static Memory remember(Snapshot s,String sig,String proposal,int checks,long next){return new Memory(s.world(),s.root(),s.owner().originalOwner(),s.context(),s.goal().digest(),sig,proposal,checks,next,s.budget().initialDigest(),s.budget().absoluteDeadlineMillis(),s.budget().used(),s.returnsUsed());}
     private static long checkAt(Snapshot s,int checks){if(checks>=4)return Long.MAX_VALUE;long delay=250L<<Math.min(checks,3);return Math.min(s.budget().absoluteDeadlineMillis(),s.nowMillis()>Long.MAX_VALUE-delay?Long.MAX_VALUE:s.nowMillis()+delay);}
-    private static Decision stop(Snapshot s,Memory old,Analysis analysis,String blocker,ChoiceRequest request){String sig=signature(s,blocker);boolean unchanged=sig.equals(old.signature());int checks=unchanged?Math.min(4,old.unchangedChecks()+1):0;long next=checkAt(s,checks);return new Decision(unchanged?DecisionKind.WAIT:DecisionKind.BLOCKED,checks>=4?"NO_PROGRESS_UNTIL_RELEVANT_CHANGE":blocker,analysis,null,request,remember(s,sig,old.lastProposalId(),checks,next),next);}
+    private static Decision stop(Snapshot s,Memory old,Analysis analysis,String blocker,ChoiceRequest request){
+        return stop(s,old,analysis,blocker,request,true);
+    }
+    private static Decision stop(Snapshot s,Memory old,Analysis analysis,String blocker,ChoiceRequest request,boolean routeQuotes){String sig=signature(s,blocker,routeQuotes);boolean unchanged=sig.equals(old.signature());int checks=unchanged?Math.min(4,old.unchangedChecks()+1):0;long next=checkAt(s,checks);return new Decision(unchanged?DecisionKind.WAIT:DecisionKind.BLOCKED,checks>=4?"NO_PROGRESS_UNTIL_RELEVANT_CHANGE":blocker,analysis,null,request,remember(s,sig,old.lastProposalId(),checks,next),next);}
     private static Map<Counter,Long> allowance(Cost cost,Snapshot s,Memory memory,boolean newPlan){var out=new EnumMap<Counter,Long>(Counter.class);out.putAll(zeroCounts());out.put(Counter.TRAVEL,cost.travel());out.put(Counter.EFFECTS,cost.effects());out.put(Counter.ELAPSED_TICKS,cost.ticks());out.put(Counter.RETRIES,s.owner().retryRequired()?1L:0L);out.put(Counter.REPLANS,newPlan && !memory.lastProposalId().isEmpty()?1L:0L);for(var c:Counter.values())if(out.get(c)>s.budget().remaining(c))return null;return Map.copyOf(out);}
     static boolean group(Action a,Action b){return a.kind()==b.kind() && a.recipe().equals(b.recipe()) && a.capability().equals(b.capability()) && a.inputs().equals(b.inputs()) && a.result().equals(b.result()) && a.rootOutput()==b.rootOutput() && a.sourceKey().equals(b.sourceKey());}
     static int groupLimit(Snapshot s,Action action,int maximumAcquisition) {
@@ -93,17 +106,17 @@ public final class PlanningCoordinator {
     }
     /** Execution hosts may select a smaller native acquisition envelope without changing the goal. */
     public Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition){
-        return next(s,saved,memory,maximumAcquisition,MAX_ACTIONS,false,false);
+        return next(s,saved,memory,maximumAcquisition,MAX_ACTIONS,false,false,false);
     }
     /** A host may constrain native segment count while the original pure planning route stays unchanged. */
     public Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments) {
-        return next(s,saved,memory,maximumAcquisition,maximumSegments,true,false);
+        return next(s,saved,memory,maximumAcquisition,maximumSegments,true,false,false);
     }
     /** Joint runtime policy transfers only the child demand, preserving the remainder in actor custody. */
     public Decision nextActivity(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments,boolean exactChildren) {
-        return next(s,saved,memory,maximumAcquisition,maximumSegments,true,exactChildren);
+        return next(s,saved,memory,maximumAcquisition,maximumSegments,true,exactChildren,true);
     }
-    private Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments,boolean grouped,boolean exactChildren) {
+    private Decision next(Snapshot s,ValidatedPlan saved,Memory memory,int maximumAcquisition,int maximumSegments,boolean grouped,boolean exactChildren,boolean activity) {
         if(maximumAcquisition<1 || maximumAcquisition>64)throw new IllegalArgumentException("Bounded native acquisition envelope");
         if(maximumSegments<1 || maximumSegments>MAX_ACTIONS)throw new IllegalArgumentException("Bounded native segment envelope");
         Objects.requireNonNull(memory);String boundary=StaticProductionPlanner.boundaryProblem(s);if(!boundary.isEmpty())return stop(s,memory,null,boundary,null);String budget=budgetProblem(s,memory);if(!budget.isEmpty())return stop(s,memory,null,budget,null);
@@ -113,7 +126,8 @@ public final class PlanningCoordinator {
         if(analysis.feasibility()!=Feasibility.FEASIBLE) {
             boolean rootMethodMissing=grouped && !s.modelAvailable() && s.recipes().stream().anyMatch(profile->
                     profile.result().equals(s.goal().item()) && (profile.method()==null || !profile.method().usable()));
-            return stop(s,memory,analysis,rootMethodMissing?"PINNED_METHOD_UNAVAILABLE_OFFLINE":analysis.reason(),null);
+            // The I00 poll stamp retains live quotes. Apply backoff to the same blocked evidence as the worker moves.
+            return stop(s,memory,analysis,rootMethodMissing?"PINNED_METHOD_UNAVAILABLE_OFFLINE":analysis.reason(),null,!activity);
         }
         var plan=analysis.plan();boolean newPlan=saved==null;
         var current=s.stock().stream().filter(x->StaticProductionPlanner.eligibleIn(s,x)>0).sorted(Comparator.comparingLong(Stock::travelCost).thenComparing(Stock::key)).toList();

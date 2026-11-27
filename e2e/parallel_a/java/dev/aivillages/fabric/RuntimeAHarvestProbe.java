@@ -20,17 +20,20 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
     private final AtomicReference<Object> pending=new AtomicReference<>();
     private String seen="";private boolean ready,adoptionHeld;
     private JsonObject adoptionClock;
+    private Long savedPickupBootTick;
     @Override public void onInitialize() {
         if(!"true".equalsIgnoreCase(System.getenv("COGNITIVECRAFT_A06_HARVEST_PROBE"))){writer.shutdown();return;}
         var clockFile=root.resolve("server/adoption-cohort-clock.json");
         if(Files.isRegularFile(clockFile))try {
             if(Files.size(clockFile)>4096)throw new IllegalArgumentException("Bounded adoption clock request");
             adoptionClock=JsonParser.parseString(Files.readString(clockFile)).getAsJsonObject();
-            if(adoptionClock.get("schema").getAsInt()!=1 || !adoptionClock.get("case").getAsString().equals("W6-003")
+            String caseId=adoptionClock.get("case").getAsString();
+            if(adoptionClock.get("schema").getAsInt()!=1 || !Set.of("W6-003","heldout-W6-003").contains(caseId)
                     || adoptionClock.getAsJsonObject("key").get("ordinal").getAsInt()!=2
                     || !adoptionClock.getAsJsonObject("expected").get("phase").getAsString().equals("RESULT"))
-                throw new IllegalArgumentException("Only original P adoption clock may be held");
+                throw new IllegalArgumentException("An original saved P clock is required");
             UUID.fromString(adoptionClock.get("id").getAsString());
+            if(caseId.equals("heldout-W6-003"))ServerLifecycleEvents.SERVER_STARTED.register(this::holdFirstSavedPickup);
         }catch(Exception invalid){throw new IllegalStateException("Invalid read-only adoption clock",invalid);}
         writer.scheduleWithFixedDelay(this::poll,0,100,TimeUnit.MILLISECONDS);
         ServerTickEvents.END_SERVER_TICK.register(server->{
@@ -69,6 +72,15 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(server->{writer.shutdown();flush();});
     }
+    private void holdFirstSavedPickup(MinecraftServer server) {
+        try {
+            int frozen=server.getCommands().getDispatcher().execute("tick freeze",server.createCommandSourceStack());
+            if(frozen!=1)throw new IllegalStateException("Saved pickup startup clock did not freeze");
+            savedPickupBootTick=server.overworld().getGameTime();
+        }catch(com.mojang.brigadier.exceptions.CommandSyntaxException failure){
+            throw new IllegalStateException("Native saved pickup startup clock refused",failure);
+        }
+    }
     /** Preserve an already proved saved cohort during its additional adoption-only re-kill. */
     private void holdAdoption(MinecraftServer server,KernelSession kernel,Map<String,Map<String,Object>> views)throws Exception {
         if(adoptionClock==null || adoptionHeld)return;
@@ -85,14 +97,19 @@ public final class RuntimeAHarvestProbe implements ModInitializer {
         var job=kernel.jobLifecycleOwner().snapshot().jobs().stream().filter(j->j.id().equals(entry.intent().key().step())).findFirst().orElse(null);
         if(job==null || !job.state().name().equals("INTERRUPTED") || job.current()==null || !job.current().uncertain()
                 || job.generation()!=entry.intent().key().generation() || !job.current().id().equals(entry.intent().key().attempt()))return;
-        int frozen=server.getCommands().getDispatcher().execute("tick freeze",server.createCommandSourceStack());
+        boolean firstSaved=adoptionClock.get("case").getAsString().equals("heldout-W6-003");
+        if(firstSaved && (savedPickupBootTick==null || savedPickupBootTick!=server.overworld().getGameTime()
+                || !server.tickRateManager().isFrozen()))throw new IllegalStateException("Saved pickup advanced before native inspection");
+        int frozen=firstSaved?1:server.getCommands().getDispatcher().execute("tick freeze",server.createCommandSourceStack());
         if(frozen!=1)throw new IllegalStateException("Read-only adoption clock did not freeze");
-        write("adoption-cohort-clock-reached.json",Map.ofEntries(Map.entry("schema",1),Map.entry("request",adoptionClock),
+        var receipt=new LinkedHashMap<>(Map.ofEntries(Map.entry("schema",1),Map.entry("request",adoptionClock),
                 Map.entry("process",process),Map.entry("pid",ProcessHandle.current().pid()),Map.entry("time",System.currentTimeMillis()),
                 Map.entry("gameTick",server.overworld().getGameTime()),Map.entry("key",entry.intent().key()),
                 Map.entry("marker",Map.of("schema",1,"effect",entry.token(),"intent",entry.intent().digest(),"phase","RESULT","result",entry.result().digest())),
                 Map.entry("classification",proof.result().name()),Map.entry("originalJob",job),
                 Map.entry("commands",List.of(Map.of("command","tick freeze","result",frozen)))));
+        if(firstSaved)receipt.put("bootGameTick",savedPickupBootTick);
+        write("adoption-cohort-clock-reached.json",receipt);
         adoptionHeld=true;
     }
     private void barrier(MinecraftServer server,FabricHarvestProtocol protocol,String stage,String point,String token,boolean save) {
