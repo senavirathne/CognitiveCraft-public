@@ -15,10 +15,76 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Verify and inspect both preserved failure archives together
+      - name: Download the preserved original campaign and A06 native archives
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 e2e/parallel_i00/inspect_archives.py
+        run: |
+          mkdir -p build/i00-failure-downloads build/i00-failure-inspection
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/15205412500/zip" > build/i00-failure-downloads/original-5.zip
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/15205881630/zip" > build/i00-failure-downloads/a06.zip
+      - name: Extract exact P4 native worlds and A06 JVM pause logs
+        run: |
+          docker pull python:3.12
+          docker run --rm -i --network none --user "$(id -u):$(id -g)" \
+            -v "$PWD/build/i00-failure-downloads:/inputs:ro" \
+            -v "$PWD/build/i00-failure-inspection:/out:rw" python:3.12 python3 - <<'PY'
+          from hashlib import file_digest, sha256
+          import json, re
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+
+          identity = ("985e2f06715f2c403dac4a2c7d143e06f1b50d6f",
+                      "76fddca43f8c90bcc0bc71a9cde1144d2c26683d",
+                      "a58e165f838064e6ec872c6e9d0af601177ccf9ff31bf676afba36bbf2ac551b")
+          archives = {
+              "original-5": (15205412500, "1650d5430b955c5d5f9155b583a321241760aa7f164669a79437e7b3e4a9ab63"),
+              "a06": (15205881630, "e2ac5f923aa5dc779e5a926bd747295bca56bad3de6a7f5f0931aed803617736"),
+          }
+          base = Path("/out")
+          for name, (artifact, expected) in archives.items():
+              archive = Path("/inputs") / (name + ".zip")
+              with archive.open("rb") as stream:
+                  assert file_digest(stream, "sha256").hexdigest() == expected
+              with ZipFile(archive) as bundle:
+                  names = bundle.namelist()
+                  assert len(set(names)) == len(names)
+                  metadata = "worlds/003/metadata.json" if name == "original-5" else "metadata.json"
+                  meta = json.loads(bundle.read(metadata))
+                  assert (meta["sourceCommit"], meta["sourceTree"], meta["releaseSha256"]) == identity
+                  assert meta["ci"]["GITHUB_RUN_ID"] == "46006054699" and meta["ci"]["GITHUB_RUN_ATTEMPT"] == "1"
+                  files = []
+                  for item in bundle.infolist():
+                      path = PurePosixPath(item.filename)
+                      assert not path.is_absolute() and ".." not in path.parts
+                      if item.is_dir():
+                          continue
+                      ext = item.filename
+                      if name == "original-5":
+                          selected = (ext.startswith(("seed/server/game/world/", "worlds/003/server/game/world/"))
+                                      and not ext.endswith("/session.lock")
+                                      or ext in (metadata, "schedule.json", "worlds/003/server/stdout.log",
+                                                 "seed/admission-world.json", "seed/admissions.json",
+                                                 "seed/oracle-candidates.json", "seed/oracle-recipes.json")
+                                      or ext.startswith("worlds/003/cases/") and ext.endswith("/result.json"))
+                      else:
+                          selected = (ext in (metadata, "a06-controls-results.json", "a06-original-results.json")
+                                      or re.fullmatch(r"server/a06-gc-.*\.log(?:\.\d+)?", ext)
+                                      or re.fullmatch(r"controls/representative-active-cost/cost-\d+\.json", ext)
+                                      or ext.startswith("a10-compiler-budget-") and ext.endswith(".json"))
+                      if not selected:
+                          continue
+                      assert item.file_size <= 24 * 1024 * 1024, item.filename
+                      body = bundle.read(item)
+                      target = base / name / path
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      target.write_bytes(body)
+                      files.append({"path": ext, "bytes": len(body), "sha256": sha256(body).hexdigest()})
+                  assert files and sum(f["bytes"] for f in files) <= 256 * 1024 * 1024
+                  (base / (name + "-selection.json")).write_text(json.dumps({
+                      "sourceRun": 46006054699, "attempt": 1, "artifact": artifact, "sha256": expected,
+                      "nativeQualification": False, "files": files,
+                  }, indent=2) + "\n")
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
